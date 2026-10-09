@@ -1,0 +1,28 @@
+{
+  "translatorID": "f895aa0d-f28e-47fe-b247-2ea77c6ed583",
+  "translatorType": 2,
+  "label": "Better BibLaTeX",
+  "description": "exports items in BibLaTeX format",
+  "creator": "Simon Kornblith, Richard Karnesky, Anders Johansson and Emiliano Heyns",
+  "target": "bib",
+  "minVersion": "4.0.27",
+  "maxVersion": "",
+  "browserSupport": "gcsv",
+  "configOptions": {
+    "getCollections": true,
+    "cached": true,
+    "hash": "8c136ec06f74b5689a69aa93bc2b5727b178d09ea334283a1a99c7bdc9ffb4c6"
+  },
+  "displayOptions": {
+    "exportNotes": false,
+    "exportFileData": false,
+    "useJournalAbbreviation": false,
+    "biblatexAPA": false,
+    "biblatexChicago": false,
+    "keepUpdated": false,
+    "worker": true
+  },
+  "priority": 50,
+  "inRepository": false,
+  "lastUpdated": "2026-08-26"
+}

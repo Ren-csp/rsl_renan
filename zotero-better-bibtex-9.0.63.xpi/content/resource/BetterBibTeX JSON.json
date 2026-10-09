@@ -1,0 +1,29 @@
+{
+  "translatorID": "36a3b0b5-bad0-4a04-b79b-441c7cef77db",
+  "label": "BetterBibTeX JSON",
+  "description": "exports and imports items in BetterBibTeX debug format. Mostly for BBT-internal use",
+  "creator": "Emiliano Heyns",
+  "target": "json",
+  "minVersion": "4.0.27",
+  "maxVersion": "",
+  "configOptions": {
+    "async": true,
+    "getCollections": true,
+    "cached": true,
+    "hash": "bf2a7e8c358f8b0d23c1001b9921dc6dde380f6a550f407db411cabba7234426"
+  },
+  "displayOptions": {
+    "exportNotes": true,
+    "exportFileData": false,
+    "Items": true,
+    "Preferences": true,
+    "keepUpdated": false,
+    "worker": true,
+    "Normalize": false
+  },
+  "translatorType": 3,
+  "browserSupport": "gcsv",
+  "priority": 49,
+  "inRepository": false,
+  "lastUpdated": "2026-08-26"
+}

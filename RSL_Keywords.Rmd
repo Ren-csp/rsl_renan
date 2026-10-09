@@ -1,0 +1,688 @@
+#### Autor: Renan ####
+#data: 11/08/2026
+# definindo palavras-chave
+
+
+#### ============================================= ####
+#### 0. PACOTES                                    ####
+#### ============================================= ####
+library(remotes)
+library(devtools)
+library(revtools)
+library(litsearchr)
+library(stringi)
+library(stringr)
+library(bibtex)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggraph)
+library(igraph)
+library(readr)
+library(XML)
+library(bibliometrix)
+
+setwd("C:/Users/renan/OneDrive/Área de Trabalho/RSL")
+
+
+#### ============================================= ####
+#### 1. FUNÇÕES AUXILIARES                         ####
+#### ============================================= ####
+
+## --- 1.1 Leitura manual de BibTeX (fallback) --- ##
+ler_bib_manual <- function(arquivo) {
+  tryCatch({
+    conteudo <- readLines(arquivo, warn = FALSE, encoding = "UTF-8")
+    indices_inicio <- grep("^@", conteudo)
+    if (length(indices_inicio) == 0) return(NULL)
+    
+    registros <- list()
+    for (j in seq_along(indices_inicio)) {
+      inicio <- indices_inicio[j]
+      fim <- if (j < length(indices_inicio)) indices_inicio[j + 1] - 1 else length(conteudo)
+      bloco <- paste(conteudo[inicio:fim], collapse = " ")
+      campos <- list()
+      
+      padroes <- list(
+        AU = 'author\\s*=\\s*[{"]([^"}]+)',
+        TI = 'title\\s*=\\s*[{"]([^"}]+)',
+        SO = 'journal\\s*=\\s*[{"]([^"}]+)',
+        PY = 'year\\s*=\\s*[{"]([^"}]+)',
+        VL = 'volume\\s*=\\s*[{"]([^"}]+)',
+        NP = 'number\\s*=\\s*[{"]([^"}]+)',
+        PP = 'pages\\s*=\\s*[{"]([^"}]+)',
+        AB = 'abstract\\s*=\\s*[{"]([^"}]+)',
+        DE = 'keywords\\s*=\\s*[{"]([^"}]+)',
+        CR = 'references\\s*=\\s*[{"]([^"}]+)',
+        UT = 'doi\\s*=\\s*[{"]([^"}]+)'
+      )
+      
+      for (nome in names(padroes)) {
+        match <- regexpr(padroes[[nome]], bloco, ignore.case = TRUE)
+        if (match[1] != -1) {
+          valor <- regmatches(bloco, match)
+          valor <- gsub('^[^"]*["{]|["}].*$', "", valor)
+          campos[[nome]] <- trimws(valor)
+        }
+      }
+      if (length(campos) > 0) registros[[length(registros) + 1]] <- campos
+    }
+    
+    if (length(registros) > 0) {
+      df <- do.call(rbind, lapply(registros, function(x) {
+        as.data.frame(t(unlist(x)), stringsAsFactors = FALSE)
+      }))
+      return(df)
+    } else return(NULL)
+  }, error = function(e) return(NULL))
+}
+
+
+## --- 1.2 Importar WOS (.bib via bibliometrix) --- ##
+importar_pasta_wos <- function(caminho_pasta, formato = "bib") {
+  if (formato == "bib") {
+    arquivos <- list.files(caminho_pasta, pattern = "\\.bib$|\\.BIB$", full.names = TRUE)
+  } else if (formato == "txt") {
+    arquivos <- list.files(caminho_pasta, pattern = "\\.txt$|\\.TXT$", full.names = TRUE)
+  } else stop("Formato não suportado.")
+  
+  if (length(arquivos) == 0) stop(paste("Nenhum arquivo encontrado em:", caminho_pasta))
+  
+  cat("Encontrados", length(arquivos), "arquivos\n")
+  dados_combinados <- NULL
+  
+  for (i in seq_along(arquivos)) {
+    cat("\n[", i, "/", length(arquivos), "] ", basename(arquivos[i]), sep = "")
+    dados_temp <- NULL
+    
+    # Tentativa 1: bibliometrix
+    tryCatch({
+      cat("\n  📊 bibliometrix...")
+      dados_temp <- bibliometrix::convert2df(arquivos[i], dbsource = "wos", format = "bibtex")
+      cat(" ✅", nrow(dados_temp), "registros\n")
+    }, error = function(e) cat("\n  ❌ bibliometrix:", e$message, "\n"))
+    
+    # Tentativa 2: revtools
+    if (is.null(dados_temp) || nrow(dados_temp) == 0) {
+      tryCatch({
+        cat("  🔄 revtools...")
+        dados_temp <- revtools::read_bibliography(normalizePath(arquivos[i], winslash = "/"))
+        cat(" ✅", nrow(dados_temp), "registros\n")
+      }, error = function(e) cat("\n  ❌ revtools:", e$message, "\n"))
+    }
+    
+    # Tentativa 3: manual
+    if (is.null(dados_temp) || nrow(dados_temp) == 0) {
+      cat("  📝 manual...")
+      dados_temp <- ler_bib_manual(arquivos[i])
+    }
+    
+    if (!is.null(dados_temp) && nrow(dados_temp) > 0) {
+      if (is.null(dados_combinados)) {
+        dados_combinados <- dados_temp
+      } else {
+        colunas_comuns <- intersect(colnames(dados_combinados), colnames(dados_temp))
+        dados_combinados <- dplyr::bind_rows(
+          dados_combinados[, colunas_comuns, drop = FALSE],
+          dados_temp[, colunas_comuns, drop = FALSE]
+        )
+      }
+    }
+  }
+  
+  cat("\n✅ TOTAL WOS:", nrow(dados_combinados), "registros\n")
+  return(dados_combinados)
+}
+
+
+## --- 1.3 Converter qualquer formato para o padrão do litsearchr --- ##
+## O litsearchr espera colunas: title, abstract, keywords, database
+## bibliometrix devolve: TI, AB, DE, DB, etc.
+## Esta função padroniza tudo.
+padronizar_para_litsearchr <- function(df, nome_database) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  
+  df <- df %>% rename_with(toupper)
+  
+  # Colunas alvo (padrão litsearchr)
+  df_padrao <- data.frame(
+    title    = if ("TI" %in% names(df)) df$TI else NA_character_,
+    abstract = if ("AB" %in% names(df)) df$AB else NA_character_,
+    keywords = if ("DE" %in% names(df)) df$DE else 
+      if ("ID" %in% names(df)) df$ID else NA_character_,
+    author   = if ("AU" %in% names(df)) df$AU else NA_character_,
+    year     = if ("PY" %in% names(df)) df$PY else 
+      if ("PD" %in% names(df)) df$PD else NA_character_,
+    journal  = if ("SO" %in% names(df)) df$SO else 
+      if ("JI" %in% names(df)) df$JI else NA_character_,
+    doi      = if ("DI" %in% names(df)) df$DI else 
+      if ("UT" %in% names(df)) df$UT else NA_character_,
+    database = nome_database,
+    stringsAsFactors = FALSE
+  )
+  
+  return(df_padrao)
+}
+
+
+## --- 1.4 Importar Scopus (RIS via litsearchr) e converter para WOS --- ##
+## litsearchr::import_results lê .ris do Scopus
+## Depois, para padronizar, usamos a mesma função acima
+importar_scopus <- function(caminho_pasta) {
+  cat("\n===== IMPORTANDO SCOPUS =====\n")
+  
+  # litsearchr lê .ris
+  df_sco <- tryCatch({
+    litsearchr::import_results(directory = caminho_pasta, verbose = TRUE)
+  }, error = function(e) {
+    cat("import_results falhou:", e$message, "\n")
+    NULL
+  })
+  
+  if (is.null(df_sco) || nrow(df_sco) == 0) {
+    cat("Tentando revtools...\n")
+    arquivos_ris <- list.files(caminho_pasta, pattern = "\\.ris$|\\.RIS$", full.names = TRUE)
+    if (length(arquivos_ris) > 0) {
+      df_sco <- revtools::read_bibliography(arquivos_ris[1])
+    }
+  }
+  
+  if (is.null(df_sco) || nrow(df_sco) == 0) {
+    stop("Falha total ao importar Scopus.")
+  }
+  
+  cat("✅ Scopus: ", nrow(df_sco), " registros\n", sep = "")
+  return(df_sco)
+}
+
+
+#### ============================================= ####
+#### 2. IMPORTAÇÃO DOS DADOS                       ####
+#### ============================================= ####
+
+# ---- 2.1 WOS ----
+cat("\n===== IMPORTANDO WOS =====\n")
+dados_WOS_raw <- importar_pasta_wos("C:/Users/renan/OneDrive/Área de Trabalho/RSL/WOS")
+
+
+# ---- 2.2 Scopus ----
+cat("\n===== IMPORTANDO SCOPUS =====\n")
+
+dados_SCO_raw <- bibliometrix::convert2df(
+  file = "C:/Users/renan/OneDrive/Área de Trabalho/RSL/SCO/sco_todos.bib",
+  dbsource = "scopus",
+  format = "bibtex"
+)
+
+cat("✅ Scopus:", nrow(dados_SCO_raw), "registros\n")
+print(colnames(dados_SCO_raw))
+
+
+#### ============================================= ####
+#### 3. PADRONIZAR COLUNAS (mesmo formato)         ####
+#### ============================================= ####
+dados_WOS <- padronizar_para_litsearchr(dados_WOS_raw, "WOS")
+dados_SCO <- padronizar_para_litsearchr(dados_SCO_raw, "Scopus")
+
+cat("\n--- Estrutura final ---\n")
+cat("WOS:\n"); str(dados_WOS, max.level = 1)
+cat("Scopus:\n"); str(dados_SCO, max.level = 1)
+
+# Confirmar colunas idênticas
+stopifnot(identical(colnames(dados_WOS), colnames(dados_SCO)))
+cat("\n✅ Colunas idênticas entre WOS e Scopus.\n")
+
+
+#### ============================================= ####
+#### 4. COMBINAR WOS + SCOPUS                      ####
+#### ============================================= ####
+naive_results_import <- bind_rows(dados_WOS, dados_SCO)
+
+cat("\n===== DISTRIBUIÇÃO POR BASE =====\n")
+print(table(naive_results_import$database))
+
+cat("\n===== VERIFICAÇÃO DE DADOS FALTANTES =====\n")
+cat("Sem título:   ", sum(is.na(naive_results_import$title)), "\n")
+cat("Sem abstract: ", sum(is.na(naive_results_import$abstract)), "\n")
+cat("Sem keywords: ", sum(is.na(naive_results_import$keywords)), "\n")
+
+
+#### ============================================= ####
+#### 5. DEDUPLICAÇÃO (via litsearchr)              ####
+#### ============================================= ####
+cat("\n===== DEDUPLICANDO =====\n")
+naive_results <- litsearchr::remove_duplicates(
+  df = naive_results_import,
+  field = "title",
+  method = "exact"
+)
+
+cat("Total antes: ", nrow(naive_results_import), "\n")
+cat("Total depois:", nrow(naive_results), "\n")
+cat("Removidos:   ", nrow(naive_results_import) - nrow(naive_results), "\n")
+
+
+#### ============================================= ####
+#### 6. EXTRAÇÃO DE TERMOS (via litsearchr)        ####
+#### ============================================= ####
+cat("\n===== EXTRAINDO TERMOS =====\n")
+
+# 6.1 Palavras-chave (tagged)
+keywords <- litsearchr::extract_terms(
+  keywords = naive_results[, "keywords"],
+  min_freq = 3,
+  method = "tagged"
+)
+
+# 6.2 Títulos (fakerake)
+title_terms <- litsearchr::extract_terms(
+  text = naive_results[, "title"],
+  method = "fakerake",
+  min_freq = 3,
+  min_n = 2
+)
+
+# 6.3 Abstracts (fakerake)
+abstract_terms <- litsearchr::extract_terms(
+  text = naive_results[, "abstract"],
+  method = "fakerake",
+  min_freq = 3,
+  min_n = 2
+)
+
+terms_min  <- unique(c(keywords, title_terms))
+terms_full <- unique(c(keywords, title_terms, abstract_terms))
+
+cat("Keywords:      ", length(keywords), "\n")
+cat("Title terms:   ", length(title_terms), "\n")
+cat("Abstract terms:", length(abstract_terms), "\n")
+cat("terms_min:     ", length(terms_min), "\n")
+cat("terms_full:    ", length(terms_full), "\n")
+
+
+#### ============================================= ####
+#### 7. REDE DE TERMOS (via litsearchr)            ####
+#### ============================================= ####
+cat("\n===== CONSTRUINDO REDE =====\n")
+
+docs <- paste(naive_results[, "title"], naive_results[, "abstract"])
+dfm  <- litsearchr::create_dfm(elements = docs, features = terms_min)
+g    <- litsearchr::create_network(dfm, min_studies = 3)
+
+cat("Nós da rede:  ", length(igraph::V(g)), "\n")
+cat("Arestas:      ", length(igraph::E(g)), "\n")
+
+
+#### ============================================= ####
+#### 8. FORÇA DOS TERMOS                           ####
+#### ============================================= ####
+salt_marsh_strengths_raw <- igraph::strength(g)
+
+salt_marsh_strengths <- data.frame(
+  term     = names(salt_marsh_strengths_raw),
+  strength = salt_marsh_strengths_raw,
+  row.names = NULL
+)
+
+term_strengths <- salt_marsh_strengths %>%
+  mutate(rank = rank(-strength, ties.method = "min")) %>%
+  arrange(desc(strength))
+
+cat("\n===== TOP 20 TERMOS =====\n")
+print(head(term_strengths, 20))
+
+
+#### ============================================= ####
+#### 9. CUTOFF (80% cumulativo)                    ####
+#### ============================================= ####
+cutoff_cumul <- litsearchr::find_cutoff(g, method = "cumulative", percent = 0.8)
+cat("\nCutoff cumulativo (80%):", cutoff_cumul, "\n")
+
+kept_terms <- term_strengths %>%
+  filter(strength >= cutoff_cumul) %>%
+  pull(term)
+
+cat("Termos mantidos:", length(kept_terms), "\n")
+
+
+#### ============================================= ####
+#### 10. VISUALIZAÇÕES                             ####
+#### ============================================= ####
+
+# 10.1 Rede
+p_rede <- ggraph(g, layout = "stress") +
+  coord_fixed() +
+  expand_limits(x = c(-3, 3)) +
+  geom_edge_link(aes(alpha = weight)) +
+  geom_node_point(shape = "circle filled", fill = "white") +
+  geom_node_text(aes(label = name), hjust = "outward", check_overlap = TRUE) +
+  guides(edge_alpha = FALSE) +
+  labs(title = "Rede de termos (litsearchr)")
+
+print(p_rede)
+
+# 10.2 Curva de cutoff
+p_cutoff <- ggplot(term_strengths, aes(x = rank, y = strength, label = term)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(yintercept = cutoff_cumul, linetype = "dashed", color = "red") +
+  geom_text(data = filter(term_strengths, rank > 5),
+            hjust = "right", nudge_y = 20, check_overlap = TRUE) +
+  labs(title = "Força dos termos e ponto de corte (80%)",
+       x = "Ranking", y = "Força")
+
+print(p_cutoff)
+
+
+#### ============================================= ####
+#### 11. COMPARAÇÃO WOS vs SCOPUS                  ####
+#### ============================================= ####
+cat("\n===== SOBREPOSIÇÃO WOS x SCOPUS =====\n")
+
+titulos_wos <- tolower(trimws(dados_WOS$title))
+titulos_sco <- tolower(trimws(dados_SCO$title))
+
+only_wos <- setdiff(titulos_wos, titulos_sco)
+only_sco <- setdiff(titulos_sco, titulos_wos)
+both     <- intersect(titulos_wos, titulos_sco)
+
+cat("Exclusivos WOS:   ", length(only_wos), "\n")
+cat("Exclusivos Scopus:", length(only_sco), "\n")
+cat("Em ambas as bases:", length(both), "\n")
+
+
+#### ============================================= ####
+#### 12. EXPORTAR TERMOS FINAIS                    ####
+#### ============================================= ####
+writeLines(kept_terms, "termos_finais_busca.txt")
+cat("\n✅ Termos finais salvos em 'termos_finais_busca.txt'\n")
+
+
+#### ============================================= ####
+#### 13. EXIBINDO OS RESULTADOS                    ####
+#### ============================================= ####
+cat("=== RESUMO GERAL ===\n\n")
+cat("Registros brutos:\n")
+cat("  WOS:   ", nrow(dados_WOS_raw), "\n")
+cat("  Scopus:", nrow(dados_SCO_raw), "\n\n")
+
+cat("Após padronização:\n")
+cat("  WOS:   ", nrow(dados_WOS), "\n")
+cat("  Scopus:", nrow(dados_SCO), "\n\n")
+
+cat("Combinado (antes da dedup):", nrow(naive_results_import), "\n")
+cat("Após deduplicação:          ", nrow(naive_results), "\n")
+cat("Duplicatas removidas:       ", nrow(naive_results_import) - nrow(naive_results), "\n\n")
+
+cat("Termos extraídos:\n")
+cat("  keywords:      ", length(keywords), "\n")
+cat("  title_terms:   ", length(title_terms), "\n")
+cat("  abstract_terms:", length(abstract_terms), "\n")
+cat("  terms_min:     ", length(terms_min), "\n\n")
+
+cat("Rede:\n")
+cat("  Nós (termos):  ", length(igraph::V(g)), "\n")
+cat("  Arestas:       ", length(igraph::E(g)), "\n")
+cat("  Cutoff (80%):  ", cutoff_cumul, "\n")
+cat("  Termos finais: ", length(kept_terms), "\n")
+
+
+#### ============================================= ####
+#### 14. comparação wos x sco                      ####
+#### ============================================= ####
+
+
+cat("=== SOBREPOSIÇÃO WOS × SCOPUS ===\n\n")
+cat("Só no WOS:     ", length(only_wos), "estudos\n")
+cat("Só no Scopus:  ", length(only_sco), "estudos\n")
+cat("Em ambas:      ", length(both), "estudos\n\n")
+
+# Visualização
+dados_sobreposicao <- data.frame(
+  categoria = c("Só WOS", "Só Scopus", "Em ambas"),
+  n = c(length(only_wos), length(only_sco), length(both))
+)
+
+ggplot(dados_sobreposicao, aes(x = categoria, y = n, fill = categoria)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = n), vjust = -0.5, size = 5) +
+  labs(title = "Sobreposição entre WOS e Scopus",
+       x = NULL, y = "Número de estudos") +
+  theme_minimal(base_size = 14)
+
+
+
+#### ============================================= ####
+#### 15. CATEGORIA DOS ESTUDOS                     ####
+#### ============================================= ####
+
+# Estudos só no WOS (com título)
+estudos_so_wos <- dados_WOS %>%
+  filter(tolower(trimws(title)) %in% only_wos) %>%
+  select(title, year, journal, doi)
+
+cat("=== EXEMPLOS: SÓ NO WOS ===\n")
+print(head(estudos_so_wos, 10))
+
+# Estudos só no Scopus
+estudos_so_sco <- dados_SCO %>%
+  filter(tolower(trimws(title)) %in% only_sco) %>%
+  select(title, year, journal, doi)
+
+cat("\n=== EXEMPLOS: SÓ NO SCOPUS ===\n")
+print(head(estudos_so_sco, 10))
+
+# Estudos em ambas
+estudos_ambas <- dados_WOS %>%
+  filter(tolower(trimws(title)) %in% both) %>%
+  select(title, year, journal, doi)
+
+cat("\n=== EXEMPLOS: EM AMBAS ===\n")
+print(head(estudos_ambas, 10))
+
+
+#### ============================================= ####
+#### 16. ESTUDOS POR ANOS                          ####
+#### ============================================= ####
+
+# Criar tabela ano × base
+dados_ano <- naive_results_import %>%
+  mutate(ano = as.numeric(substr(year, 1, 4))) %>%
+  filter(!is.na(ano), ano >= 2000) %>%
+  count(ano, database)
+
+ggplot(dados_ano, aes(x = ano, y = n, fill = database)) +
+  geom_col(position = "dodge") +
+  labs(title = "Publicações por ano e base de dados",
+       x = "Ano", y = "Número de publicações", fill = "Base") +
+  theme_minimal(base_size = 14)
+
+
+#### ============================================= ####
+#### 17. TABELA TERMOS MAIS FORTES                 ####
+#### ============================================= ####
+
+cat("=== TOP 30 TERMOS MAIS FORTES ===\n")
+print(head(term_strengths, 30))
+
+
+#### ============================================= ####
+#### 18. GRAFICO TERMOS MAIS FORTES                ####
+#### ============================================= ####
+
+top30 <- term_strengths %>% head(30)
+
+ggplot(top30, aes(x = reorder(term, strength), y = strength)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Top 30 termos mais fortes na rede",
+       x = NULL, y = "Força (strength)") +
+  theme_minimal(base_size = 12)
+
+
+#### ============================================= ####
+#### 19. TERMOS FINAIS                             ####
+#### ============================================= ####
+
+cat("=== TERMOS MANTIDOS (", length(kept_terms), ") ===\n")
+print(kept_terms)
+
+
+#### ============================================= ####
+#### 20. REDES DE TERMOS                           ####
+#### ============================================= ####
+
+print(p_rede)
+
+# Filtrar a rede só para os termos que passaram no cutoff
+g_kept <- igraph::induced_subgraph(g, kept_terms)
+
+ggraph(g_kept, layout = "stress") +
+  coord_fixed() +
+  geom_edge_link(aes(alpha = weight), color = "grey60") +
+  geom_node_point(size = 3, shape = 21, fill = "steelblue", color = "black") +
+  geom_node_text(aes(label = name), hjust = "outward", 
+                 check_overlap = TRUE, size = 3) +
+  guides(edge_alpha = FALSE) +
+  labs(title = paste("Rede apenas com os", length(kept_terms), "termos mantidos")) +
+  theme_void()
+
+
+# Classificar 10 nós mais fortes
+V(g)$forca <- igraph::strength(g)
+V(g)$top10 <- V(g)$forca >= sort(V(g)$forca, decreasing = TRUE)[10]
+
+ggraph(g, layout = "stress") +
+  coord_fixed() +
+  geom_edge_link(aes(alpha = weight), color = "grey70") +
+  geom_node_point(aes(size = forca, color = top10)) +
+  geom_node_text(aes(label = ifelse(top10, name, "")), 
+                 hjust = "outward", check_overlap = TRUE, size = 3.5) +
+  scale_color_manual(values = c("FALSE" = "grey50", "TRUE" = "red")) +
+  guides(edge_alpha = FALSE, color = FALSE) +
+  labs(title = "Rede completa — Top 10 em vermelho") +
+  theme_void()
+
+
+#### ============================================= ####
+#### 21. COMUNIDADES NA REDE                       ####
+#### ============================================= ####
+
+# Detectar comunidades
+comunidades <- igraph::cluster_louvain(g)
+cat("Número de comunidades detectadas:", length(comunidades), "\n\n")
+
+# Ver os termos de cada comunidade
+for (i in 1:length(comunidades)) {
+  membros <- igraph::membership(comunidades) == i
+  termos_com <- names(membros[membros])
+  if (length(termos_com) > 3) {
+    cat("--- Comunidade", i, "(", length(termos_com), "termos ) ---\n")
+    print(head(termos_com, 15))
+    cat("\n")
+  }
+}
+
+# Visualizar comunidades com cores diferentes
+V(g)$comunidade <- as.factor(igraph::membership(comunidades))
+
+ggraph(g, layout = "stress") +
+  coord_fixed() +
+  geom_edge_link(aes(alpha = weight), color = "grey70") +
+  geom_node_point(aes(color = comunidade), size = 3) +
+  geom_node_text(aes(label = name), hjust = "outward", 
+                 check_overlap = TRUE, size = 2.5) +
+  guides(edge_alpha = FALSE, color = "none") +
+  labs(title = "Comunidades de termos na rede") +
+  theme_void()
+
+
+#### ============================================= ####
+#### 22. INVESTIGANDO ESTUDOS INDIVIDUAIS          ####
+#### ============================================= ####
+
+#Top 10 estudos com mais termos de busca
+# Adicionar contagem de termos mantidos por estudo
+contar_termos <- function(texto) {
+  if (is.na(texto)) return(0)
+  sum(sapply(kept_terms, function(t) grepl(t, texto, ignore.case = TRUE)))
+}
+
+naive_results$n_termos <- sapply(
+  paste(naive_results$title, naive_results$abstract),
+  contar_termos
+)
+
+top_estudos <- naive_results %>%
+  arrange(desc(n_termos)) %>%
+  select(title, year, database, n_termos) %>%
+  head(10)
+
+cat("=== ESTUDOS COM MAIS TERMOS RELEVANTES ===\n")
+print(top_estudos)
+
+
+#Comparar WOS vs Scopus por completude de dados
+completude <- naive_results_import %>%
+  group_by(database) %>%
+  summarise(
+    n = n(),
+    com_abstract = sum(!is.na(abstract) & abstract != ""),
+    com_keywords = sum(!is.na(keywords) & keywords != ""),
+    com_doi      = sum(!is.na(doi) & doi != ""),
+    pct_abstract = round(100 * com_abstract / n, 1),
+    pct_keywords = round(100 * com_keywords / n, 1),
+    pct_doi      = round(100 * com_doi / n, 1)
+  )
+
+cat("=== COMPLETUDE POR BASE ===\n")
+print(as.data.frame(completude))
+
+# Visualizar
+completude_long <- completude %>%
+  select(database, pct_abstract, pct_keywords, pct_doi) %>%
+  pivot_longer(-database, names_to = "campo", values_to = "pct")
+
+ggplot(completude_long, aes(x = campo, y = pct, fill = database)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = paste0(pct, "%")), 
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  labs(title = "Completude dos metadados por base",
+       x = NULL, y = "% de preenchimento", fill = "Base") +
+  theme_minimal(base_size = 14)
+
+
+
+#### ============================================= ####
+#### 23. EXPORTAR RESULTADOS                       ####
+#### ============================================= ####
+#Salvando como tabela CSV
+# Termos com força
+write.csv(term_strengths, "termos_forca.csv", row.names = FALSE)
+
+# Termos finais
+write.csv(data.frame(termo = kept_terms), "termos_finais.csv", row.names = FALSE)
+
+# Estudos combinados e deduplicados
+write.csv(naive_results, "estudos_deduplicados.csv", row.names = FALSE)
+
+# Sobreposição
+write.csv(dados_sobreposicao, "sobreposicao_bases.csv", row.names = FALSE)
+
+cat("✅ Arquivos salvos:\n")
+cat("  - termos_forca.csv\n")
+cat("  - termos_finais.csv\n")
+cat("  - estudos_deduplicados.csv\n")
+cat("  - sobreposicao_bases.csv\n")
+
+
+#Salvando gráficos como PNG
+ggsave("rede_completa.png", p_rede, width = 14, height = 12, dpi = 300)
+ggsave("curva_cutoff.png", p_cutoff, width = 12, height = 8, dpi = 300)
+ggsave("top30_termos.png", width = 10, height = 10, dpi = 300)
+ggsave("sobreposicao.png", width = 8, height = 6, dpi = 300)
+
+cat("✅ Gráficos salvos como PNG (300 dpi)\n")
+
+
+

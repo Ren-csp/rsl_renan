@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css"?>
+<?xml-stylesheet href="chrome://global/skin/global.css"?>
+<?xml-stylesheet href="chrome://browser/skin/preferences/preferences.css"?>
+<?xml-stylesheet href="chrome://zotero/skin/preferences.css"?>
+<?xml-stylesheet href="chrome://zotero/skin/zotero.css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/overlay.css"?>
+<?xml-stylesheet href="chrome://zotero-better-bibtex/content/skin/preferences.css"?>
+<?xml-stylesheet href="chrome://zotero-better-bibtex/content/skin/error-report.css" type="text/css"?>
+<!DOCTYPE window [
+  <!ENTITY % ZoteroDTD SYSTEM "chrome://zotero/locale/zotero.dtd"> %ZoteroDTD;
+  <!ENTITY % BBTDTD SYSTEM "chrome://zotero-better-bibtex/locale/zotero-better-bibtex.dtd"> %BBTDTD;
+  <!ENTITY % standaloneDTD SYSTEM "chrome://zotero/locale/standalone.dtd"> %standaloneDTD;
+]>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" xmlns:html="http://www.w3.org/1999/xhtml">
+  <linkset>
+    <html:link rel="localization" href="better-bibtex.ftl"></html:link>
+    <html:link rel="localization" href="toolkit/global/wizard.ftl"></html:link>
+  </linkset>
+  <script src="chrome://global/content/customElements.js"></script>
+  <wizard id="better-bibtex-error-report" title="&better-bibtex_error-report.title;" _width="700" _height="700">
+    <wizardpage hidden="hidden" pageid="page-enable-debug" label=" ">
+      <description class="header" style="white-space: pre-wrap;">&better-bibtex_error-report_enable-debug;</description>
+      <vbox>
+        <button label="&better-bibtex_error-report_restart-with-logging-enabled.label;" oncommand="window.ErrorReport.restartWithDebugEnabled()"></button>
+      </vbox>
+    </wizardpage>
+    <wizardpage hidden="hidden" pageid="page-upgrade" label=" ">
+      <html:div>
+        <html:p id="better-bibtex-report-upgrade-bbt" data-l10n-id="better-bibtex_error-report_upgrade"></html:p>
+        <html:p id="better-bibtex-report-upgrade-zotero" data-l10n-id="better-bibtex_error-report_upgrade"></html:p>
+        <html:p id="better-bibtex-report-upgrade-zotero_auto" hidden="hidden" data-l10n-id="better-bibtex_error-report_upgrade_auto"></html:p>
+        <html:p id="better-bibtex-report-upgrade-zotero_manual" hidden="hidden" data-l10n-id="better-bibtex_error-report_upgrade_manual"></html:p>
+      </html:div>
+    </wizardpage>
+    <wizardpage hidden="hidden" pageid="page-items" label=" ">
+      <html:div>
+        <html:p id="better-bibtex-report-no-items" data-l10n-id="better-bibtex_error-report_no_items"></html:p>
+        <html:ul>
+          <html:li data-l10n-id="better-bibtex_error-report_no_items_cancel"></html:li>
+          <html:li data-l10n-id="better-bibtex_error-report_no_items_reproduce"></html:li>
+          <html:li data-l10n-id="better-bibtex_error-report_no_items_select"></html:li>
+          <html:li data-l10n-id="better-bibtex_error-report_no_items_popup"></html:li>
+          <html:li data-l10n-id="better-bibtex_error-report_no_items_report"></html:li>
+        </html:ul>
+      </html:div>
+    </wizardpage>
+    <wizardpage pageid="page-review" label=" ">
+      <tooltip id="better-bibtex-error-report-info">&better-bibtex_error-report_review;</tooltip>
+      <label id="better-bibtex-report-cache" data-l10n-id="better-bibtex_error-report_better-bibtex_cache" flex="1" readonly="true"></label>
+      <checkbox class="better-bibtex-error-report-facet" id="better-bibtex-error-report-include-errors" checked="checked" label="&better-bibtex_error-report_include-errors.label;"></checkbox>
+      <checkbox class="better-bibtex-error-report-facet" id="better-bibtex-error-report-include-log" checked="checked" label="&better-bibtex_error-report_include-log.label;"></checkbox>
+      <html:fieldset>
+        <html:legend>&better-bibtex_error-report_include-items.label;</html:legend>
+        <checkbox class="better-bibtex-error-report-facet" id="better-bibtex-error-report-include-notes" checked="checked" label="&better-bibtex_error-report_include-notes.label;"></checkbox>
+        <checkbox class="better-bibtex-error-report-facet" id="better-bibtex-error-report-include-attachments" checked="checked" label="&better-bibtex_error-report_include-attachments.label;"></checkbox>
+        <checkbox class="better-bibtex-error-report-facet" id="better-bibtex-error-report-include-cache" checked="checked" label="&better-bibtex_error-report_include-cache.label;"></checkbox>
+      </html:fieldset>
+      <tabbox class="debug-on" flex="10">
+        <tabs>
+          <tab id="better-bibtex-error-context-tab" label="&better-bibtex_error-report_context.label;"></tab>
+          <tab id="better-bibtex-error-errors-tab" label="&better-bibtex_error-report_errors.label;"></tab>
+          <tab id="better-bibtex-error-log-tab" label="&better-bibtex_error-report_debug.label;"></tab>
+          <tab id="better-bibtex-error-items-tab" label="&better-bibtex_error-report_items.label;"></tab>
+        </tabs>
+        <tabpanels flex="1">
+          <tabpanel flex="1" orient="vertical">
+            <html:textarea class="plain" id="better-bibtex-error-context" readonly="true" multiline="true" flex="10" style="min-height: 8em;" tooltip="better-bibtex-error-report-info" cols="40" rows="5"></html:textarea>
+          </tabpanel>
+          <tabpanel flex="1" orient="vertical">
+            <html:textarea class="plain" id="better-bibtex-error-errors" readonly="true" multiline="true" flex="10" style="min-height: 8em;" tooltip="better-bibtex-error-report-info" cols="40" rows="5"></html:textarea>
+          </tabpanel>
+          <tabpanel flex="1" orient="vertical">
+            <html:textarea class="plain" id="better-bibtex-error-log" readonly="true" multiline="true" flex="10" style="min-height: 8em;" tooltip="better-bibtex-error-report-info" cols="40" rows="5"></html:textarea>
+          </tabpanel>
+          <tabpanel flex="1" orient="vertical">
+            <html:textarea class="plain" id="better-bibtex-error-items" readonly="true" multiline="true" flex="10" style="min-height: 8em;" tooltip="better-bibtex-error-report-info" cols="40" rows="5"></html:textarea>
+          </tabpanel>
+        </tabpanels>
+      </tabbox>
+      <hbox>
+        <button label="&better-bibtex_error-report_save.label;" oncommand="window.ErrorReport.save()"></button>
+        <hbox flex="1"></hbox>
+      </hbox>
+      <html:div id="better-bibtex-error-send-reminder" data-l10n-id="better-bibtex-error-send-reminder"></html:div>
+    </wizardpage>
+    <wizardpage pageid="page-send" label=" ">
+      <description>&better-bibtex_error-report_submission-in-progress;</description>
+    </wizardpage>
+    <wizardpage pageid="page-done" label=" ">
+      <description>&better-bibtex_error-report_submitted;</description>
+      <description id="better-bibtex-report-result">
+        <description>&better-bibtex_error-report_report-id; 
+          <html:input class="plain textbox-emph" id="better-bibtex-report-id" flex="1" size="40" readonly="true" type="text"></html:input>
+        </description>
+      </description>
+      <html:div data-l10n-id="better-bibtex_error-report_post-to-github"></html:div>
+      <html:a href="https://github.com/retorquere/zotero-better-bibtex/issues" onclick="Zotero.launchURL(&quot;https://github.com/retorquere/zotero-better-bibtex/issues/new/choose&quot;)">https://github.com/retorquere/zotero-better-bibtex/issues</html:a>
+    </wizardpage>
+    <script src="chrome://zotero/content/include.js"></script>
+    <script>
+      window.addEventListener('load', function() {
+        Zotero.BetterBibTeX.ErrorReport.load(window).catch(err => Zotero.debug(`BBT.ErrorReport: error: ${err}\n${err.stack}`))
+      })
+    </script>
+  </wizard>
+</window>

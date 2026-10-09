@@ -1,0 +1,412 @@
+<vbox onload="Zotero.BetterBibTeX.PrefPane.load(window)" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" xmlns:html="http://www.w3.org/1999/xhtml">
+  <linkset>
+    <html:link rel="localization" href="better-bibtex.ftl"/>
+  </linkset>
+  <popupset>
+    <tooltip id="bbt-tooltip-bibtexURL">
+      <description data-l10n-id="better-bibtex_preferences_export_fields_doi-and-url_warning"></description>
+    </tooltip>
+    <tooltip id="bbt-tooltip-jabrefFormat">
+      <description data-l10n-id="better-bibtex_preferences_export_jabref-format_warn"></description>
+    </tooltip>
+    <tooltip id="bbt-tooltip-importSentenceCase">
+      <description data-l10n-id="better-bibtex_preferences_advanced_import_sentence-case_warning"></description>
+    </tooltip>
+    <tooltip id="bbt-tooltip-importCaseProtection">
+      <description data-l10n-id="better-bibtex_preferences_advanced_import_case-protection_warning"></description>
+    </tooltip>
+    <tooltip id="bbt-tooltip-exportTitlecase">
+      <description data-l10n-id="better-bibtex_preferences_advanced_export_title-case_warning"></description>
+    </tooltip>
+    <tooltip id="bbt-tooltip-exportBraceProtection">
+      <description data-l10n-id="better-bibtex_preferences_advanced_export_brace-protection_warning"></description>
+    </tooltip>
+  </popupset>
+  <groupbox class="bbt-prefs-section">
+    <label>
+      <html:h2 data-l10n-id="better-bibtex_preferences_tab_citekey"></html:h2>
+    </label>
+    <html:div class="bbt-prefs-1col">
+      <label data-l10n-id="better-bibtex_preferences_citekey_format"></label>
+      <html:textarea id="bbt-preferences-citekeyFormatEditing" cols="80" preference="extensions.zotero.translators.better-bibtex.citekeyFormatEditing" rows="10"></html:textarea>
+      <hbox>
+        <button label="⟳" oncommand="Zotero.BetterBibTeX.PrefPane.checkCitekeyFormat()" size="3" style="padding: 0px 5px;"></button>
+        <label class="bbt-prefs-preview" id="bbt-citekey-preview" size="80"></label>
+      </hbox>
+      <label class="bbt-prefs-error" id="bbt-citekeyFormat-error" multiline="true" preference="extensions.zotero.translators.better-bibtex.citekeyFormat" readonly="readonly" rows="2" size="80"></label>
+      <label id="bbt-label-citekeyFormat" data-l10n-id="better-bibtex_preferences_citekey_format_installed"></label>
+      <html:textarea id="bbt-preferences-citekeyFormat" cols="80" preference="extensions.zotero.translators.better-bibtex.citekeyFormat" readonly="readonly" rows="5"></html:textarea>
+      <checkbox data-l10n-id="better-bibtex_preferences_citekey_fold" native="true" preference="extensions.zotero.translators.better-bibtex.citekeyFold"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_citekey_dynamic" native="true" preference="extensions.zotero.translators.better-bibtex.resetKeyOnChange"></checkbox>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_citekey_auto-pin-delay"></label>
+        <html:input max="30" min="0" preference="extensions.zotero.translators.better-bibtex.fillKeyAfter" type="range"></html:input>
+        <html:input preference="extensions.zotero.translators.better-bibtex.fillKeyAfter" readonly="readonly" rows="1" size="2" type="text"></html:input>
+        <label data-l10n-id="better-bibtex_units_seconds"></label>
+      </html:div>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_citekey_uniqueness"></html:h2>
+        </label>
+        <checkbox data-l10n-id="better-bibtex_preferences_citekey_uniqueness_case" preference="extensions.zotero.translators.better-bibtex.citekeyCaseInsensitive" native="true"></checkbox>
+        <html:div>
+          <label data-l10n-id="better-bibtex_preferences_citekey_uniqueness_scope"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.keyScope">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_citekey_uniqueness_scope_global" value="global"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_citekey_uniqueness_scope_library" value="library"></menuitem>
+            </menupopup>
+          </menulist>
+        </html:div>
+      </groupbox>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_advanced_ideographs"></html:h2>
+        </label>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_ideographs_japanese" preference="extensions.zotero.translators.better-bibtex.japanese" native="true"></checkbox>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_ideographs_chinese" preference="extensions.zotero.translators.better-bibtex.chinese" native="true"></checkbox>
+        <checkbox id="bbt-chinese-splitname" data-l10n-id="better-bibtex_preferences_advanced_ideographs_splitName" preference="extensions.zotero.translators.better-bibtex.chineseSplitName" native="true"></checkbox>
+      </groupbox>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_bulk-warning"></label>
+        <html:input preference="extensions.zotero.translators.better-bibtex.warnBulkModify" size="5" type="text"></html:input>
+      </html:div>
+    </html:div>
+  </groupbox>
+  <groupbox class="bbt-prefs-section">
+    <label>
+      <html:h2 data-l10n-id="better-bibtex_preferences_tab_export"></html:h2>
+    </label>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2>BibTeX</html:h2>
+      </label>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_bibtex_ascii" preference="extensions.zotero.translators.better-bibtex.asciiBibTeX" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_fields_bibtex-particle-no-op" preference="extensions.zotero.translators.better-bibtex.bibtexParticleNoOp" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_fields_bibtex-edition-ordinal" preference="extensions.zotero.translators.better-bibtex.bibtexEditionOrdinal" native="true"></checkbox>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_export_bibtex_urls"></label><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-bibtexURL"/>
+      </html:div>
+      <menulist native="true" preference="extensions.zotero.translators.better-bibtex.bibtexURL">
+        <menupopup>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_off" value="off"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_note" value="note"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_note-url-ish" value="note-url-ish"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_url" value="url"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_url-ish" value="url-ish"></menuitem>
+        </menupopup>
+      </menulist>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2>BibLaTeX</html:h2>
+      </label>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_biblatex_ascii" preference="extensions.zotero.translators.better-bibtex.asciiBibLaTeX" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_biblatex_extended-name-format" preference="extensions.zotero.translators.better-bibtex.biblatexExtendedNameFormat" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_biblatex_use-prefix" preference="extensions.zotero.translators.better-bibtex.biblatexUsePrefix" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_biblatex_biblatex-extract-eprint" preference="extensions.zotero.translators.better-bibtex.biblatexExtractEprint" native="true"></checkbox>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_export_fields"></html:h2>
+      </label>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_export_fields_skip"></label>
+        <html:input preference="extensions.zotero.translators.better-bibtex.skipFields" size="30" type="text"></html:input>
+      </html:div>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_auto-abbrev"></label>
+        <menulist native="true" preference="extensions.zotero.translators.better-bibtex.journalAbbreviation" preference-editable="true">
+          <menupopup>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-abbrev_abbrev" value="abbrev"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-abbrev_auto" value="auto"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-abbrev_abbrev-plus-auto" value="abbrev+auto"></menuitem>
+          </menupopup>
+        </menulist>
+      </html:div>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2>BibTeX/BibLaTeX</html:h2>
+        </label>
+        <html:div>
+          <label data-l10n-id="better-bibtex_preferences_export_fields_language"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.language" preference-editable="true">
+            <menupopup>
+              <menuitem label="langid" value="langid"></menuitem>
+              <menuitem label="language" value="language"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_fields_language_both" value="both"></menuitem>
+            </menupopup>
+          </menulist>
+        </html:div>
+        <html:div>
+          <label data-l10n-id="better-bibtex_preferences_export_fields_doi-and-url"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.DOIandURL" preference-editable="true">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_fields_doi-and-url_both" value="both"></menuitem>
+              <menuitem label="DOI" value="doi"></menuitem>
+              <menuitem label="URL" value="url"></menuitem>
+            </menupopup>
+          </menulist><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-DOIandURL"/>
+        </html:div>
+        <html:div>
+          <label data-l10n-id="better-bibtex_preferences_export_jabref-format"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.jabrefFormat" preference-editable="true">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_jabref-format_0" value="0"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_jabref-format_3" value="3"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_jabref-format_4" value="4"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_jabref-format_5" value="5"></menuitem>
+            </menupopup>
+          </menulist><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-jabrefFormat"/>
+        </html:div>
+      </groupbox>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_export_quick-copy"></html:h2>
+      </label>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_export_quick-copy_explanation"></html:h2>
+        </label>
+        <html:div>
+          <label data-l10n-id="better-bibtex_preferences_export_quick-copy_format"></label>
+          <menulist id="bbt-preferences-quickcopy" native="true" preference="extensions.zotero.translators.better-bibtex.quickCopyMode" preference-editable="true">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_latex" value="latex"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_citekeys" value="citekeys"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_eta" value="eta"></menuitem>
+              <menuitem label="GitBook" value="gitbook"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-ref" value="orgRef"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-ref3" value="orgRef3"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-mode_cite" value="orgcite"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-mode" value="orgmode"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_pandoc" value="pandoc"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_roam-cite-key" value="roamCiteKey"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_rtf-scan" value="rtfScan"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_select-link" value="selectlink"></menuitem>
+              <menuitem label="Jupyter notebook" value="jupyter"></menuitem>
+              <menuitem label="Jekyll" value="jekyll"></menuitem>
+            </menupopup>
+          </menulist>
+        </html:div>
+        <html:div class="bbt-preferences-quickcopy-details" id="bbt-preferences-quickcopy-details-latex">
+          <label data-l10n-id="better-bibtex_preferences_export_quick-copy_latex_command"></label>
+          <html:input preference="extensions.zotero.translators.better-bibtex.citeCommand" size="10" type="text"></html:input>
+        </html:div>
+        <html:div class="bbt-preferences-quickcopy-details" id="bbt-preferences-quickcopy-details-pandoc">
+          <checkbox data-l10n-id="better-bibtex_preferences_export_quick-copy_pandoc_brackets" native="true" preference="extensions.zotero.translators.better-bibtex.quickCopyPandocBrackets"></checkbox>
+        </html:div>
+        <html:div class="bbt-preferences-quickcopy-details" id="bbt-preferences-quickcopy-details-orgmode">
+          <label data-l10n-id="better-bibtex_preferences_export_quick-copy_org-mode"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.quickCopyOrgMode">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-mode_zotero" value="zotero"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_org-mode_citekey" value="citationkey"></menuitem>
+            </menupopup>
+          </menulist>
+        </html:div>
+        <html:div class="bbt-preferences-quickcopy-details" id="bbt-preferences-quickcopy-details-selectlink">
+          <label data-l10n-id="better-bibtex_preferences_export_quick-copy_select-link"></label>
+          <menulist native="true" preference="extensions.zotero.translators.better-bibtex.quickCopySelectLink">
+            <menupopup>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_select-link_zotero" value="zotero"></menuitem>
+              <menuitem data-l10n-id="better-bibtex_preferences_export_quick-copy_select-link_citekey" value="citationkey"></menuitem>
+            </menupopup>
+          </menulist>
+        </html:div>
+        <html:div class="bbt-preferences-quickcopy-details bbt-prefs-1col" id="bbt-preferences-quickcopy-details-eta">
+          <label class="text-link" data-l10n-id="better-bibtex_preferences_export_quick-copy_eta-template" onclick="Zotero.launchURL(&quot;https://retorque.re/zotero-better-bibtex/installation/preferences/export/#eta-template&quot;)"></label>
+          <html:textarea cols="80" preference="extensions.zotero.translators.better-bibtex.quickCopyEta" rows="20"></html:textarea>
+        </html:div>
+      </groupbox>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_advanced_tab_postscript"></html:h2>
+      </label>
+      <html:textarea id="bbt-postscript" rows="10" cols="80" onblur="Zotero.BetterBibTeX.PrefPane.checkPostscript();" oninput="Zotero.BetterBibTeX.PrefPane.checkPostscript();" onkeypress="setTimeout(function() { Zotero.BetterBibTeX.PrefPane.checkPostscript() }, 1);" preference="extensions.zotero.translators.better-bibtex.postscript"></html:textarea>
+      <html:textarea class="plain bbt-prefs-emph" id="bbt-cache-warn-postscript" rows="2" cols="80" data-l10n-id="better-bibtex_preferences_postscript_warn" readonly="readonly" value="value"></html:textarea>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_tab_misc"></html:h2>
+      </label>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_export_sort"></label>
+        <menulist native="true" preference="extensions.zotero.translators.better-bibtex.exportSort">
+          <menupopup>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_sort_off" value="off"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_sort_id" value="id"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_sort_citekey" value="citekey"></menuitem>
+          </menupopup>
+        </menulist>
+      </html:div>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_quality-report" preference="extensions.zotero.translators.better-bibtex.qualityReport" native="true"></checkbox>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_automatic-tags" preference="extensions.zotero.translators.better-bibtex.automaticTags" native="true"></checkbox>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_advanced_export_title-case"></label>
+        <html:div style="display:flex;align-items:center;gap:4px">
+          <textbox preference="extensions.zotero.translators.better-bibtex.exportTitlecase" native="true" style="flex:1"></textbox><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-exportTitlecase"/>
+        </html:div>
+      </html:div>
+      <html:div>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_export_brace-protection" preference="extensions.zotero.translators.better-bibtex.exportBraceProtection" native="true"></checkbox><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-exportBraceProtection"/>
+      </html:div>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2>Cache</html:h2>
+        </label>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_export_workers_cache" preference="extensions.zotero.translators.better-bibtex.cache" native="true"></checkbox>
+        <button data-l10n-id="better-bibtex_preferences_reset-cache" oncommand="Zotero.BetterBibTeX.PrefPane.cacheReset()"></button>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_export_reset-cache" preference="extensions.zotero.translators.better-bibtex.cacheDelete" readonly="readonly" native="true"></checkbox>
+      </groupbox>
+    </groupbox>
+  </groupbox>
+  <groupbox class="bbt-prefs-section">
+    <label>
+      <html:h2 data-l10n-id="better-bibtex_preferences_tab_auto-export"></html:h2>
+    </label>
+    <html:div class="bbt-prefs-1col">
+      <label data-l10n-id="better-bibtex_preferences_auto-export_explanation"></label>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_auto-export"></label>
+        <menulist preference="extensions.zotero.translators.better-bibtex.autoExport" native="true">
+          <menupopup>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-export_immediate" value="immediate"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-export_idle" value="idle"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_auto-export_off" value="off"></menuitem>
+          </menupopup>
+        </menulist>
+      </html:div>
+      <html:div>
+        <label data-l10n-id="better-bibtex_preferences_auto-export_delay"></label>
+        <html:input max="300" min="2" preference="extensions.zotero.translators.better-bibtex.autoExportDelay" type="range"></html:input>
+        <html:input preference="extensions.zotero.translators.better-bibtex.autoExportDelay" readonly="readonly" rows="1" size="3" type="text"></html:input>
+        <label data-l10n-id="better-bibtex_units_seconds"></label>
+      </html:div>
+    </html:div>
+    <html:div class="bbt-prefs-2col" id="bbt-prefs-auto-exports">
+      <menulist class="bbt-prefs-2col-span" id="bbt-prefs-auto-export-select" native="true" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.refresh()">
+        <menupopup></menupopup>
+      </menulist>
+      <label data-ae-field="type"></label>
+      <html:input class="plain" data-ae-field="name" readonly="readonly" type="text" value="value"></html:input>
+      <label data-l10n-id="better-bibtex_preferences_auto-export_status"></label>
+      <html:input class="plain" data-ae-field="status" readonly="readonly" size="80" type="text" value="value"></html:input>
+      <label data-l10n-id="better-bibtex_preferences_auto-export_updated"></label>
+      <html:input class="plain" data-ae-field="updated" readonly="readonly" size="80" type="text" value="value"></html:input>
+      <label data-l10n-id="better-bibtex_preferences_auto-export_translator"></label>
+      <html:input class="plain" data-ae-field="translator" readonly="readonly" type="text" value="value"></html:input>
+      <label data-l10n-id="better-bibtex_preferences_auto-export_target"></label>
+      <html:input class="plain" data-ae-field="path" readonly="readonly" size="80" type="text" value="value"></html:input>
+      <html:div class="bbt-autoexport-options bbt-autoexport-BetterBibTeX bbt-prefs-2col-span">
+        <label class="bbt-autoexport-options bbt-autoexport-BetterBibTeX" data-l10n-id="better-bibtex_preferences_export_bibtex_urls"></label>
+        <menulist data-ae-field="bibtexURL" native="true" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)">
+          <menupopup>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_off" value="off"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_note" value="note"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_note-url-ish" value="note-url-ish"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_url" value="url"></menuitem>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_bibtex_urls_url-ish" value="url-ish"></menuitem>
+          </menupopup>
+        </menulist><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-bibtexURL"/>
+      </html:div>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="asciiBibLaTeX" data-l10n-id="better-bibtex_preferences_export_biblatex_ascii" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="biblatexExtendedNameFormat" data-l10n-id="better-bibtex_preferences_export_biblatex_extended-name-format" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <html:div class="bbt-autoexport-options bbt-autoexport-BetterBibTeX bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span">
+        <label data-l10n-id="better-bibtex_preferences_export_fields_doi-and-url"></label>
+        <menulist data-ae-field="DOIandURL" native="true" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)">
+          <menupopup>
+            <menuitem data-l10n-id="better-bibtex_preferences_export_fields_doi-and-url_both" value="both"></menuitem>
+            <menuitem label="DOI" value="doi"></menuitem>
+            <menuitem label="URL" value="url"></menuitem>
+          </menupopup>
+        </menulist>
+      </html:div>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibTeX bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="exportNotes" data-l10n-id="better-bibtex_preferences_auto-export_fields_notes" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibTeX bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="useJournalAbbreviation" data-l10n-id="better-bibtex_preferences_auto-export_fields_journal-abbrev" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="biblatexAPA" label="biblatex-apa" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <checkbox class="bbt-autoexport-options bbt-autoexport-BetterBibLaTeX bbt-prefs-2col-span" data-ae-field="biblatexChicago" label="biblatex-chicago" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <checkbox class="bbt-prefs-2col-span" data-ae-field="recursive" data-l10n-id="better-bibtex_preferences_auto-export_fields_recursive" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.edit(this)" native="true"></checkbox>
+      <html:div class="bbt-prefs-2col-span">
+        <button data-l10n-id="better-bibtex_preferences_auto-export_remove" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.remove()"></button>
+        <button data-l10n-id="better-bibtex_preferences_auto-export_run" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.run()"></button>
+        <button data-l10n-id="better-bibtex_preferences_auto-export_fields_cached" oncommand="Zotero.BetterBibTeX.PrefPane.autoexport.refresh()"></button>
+        <html:input class="plain" data-ae-field="cacherate" readonly="readonly" type="text" value="value"></html:input>
+      </html:div>
+    </html:div>
+  </groupbox>
+  <groupbox class="bbt-prefs-section">
+    <label>
+      <html:h2 data-l10n-id="better-bibtex_preferences_tab_misc"></html:h2>
+    </label>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_export_fields"></html:h2>
+      </label>
+      <checkbox data-l10n-id="better-bibtex_preferences_advanced_extra-field_as-note" preference="extensions.zotero.translators.better-bibtex.extraFieldAsNote" native="true"></checkbox>
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_advanced_extra-merge"></html:h2>
+        </label>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_extra_merge-citekeys" preference="extensions.zotero.translators.better-bibtex.extraMergeCitekeys" native="true"></checkbox>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_extra-merge-csl" preference="extensions.zotero.translators.better-bibtex.extraMergeCSL" native="true"></checkbox>
+        <checkbox data-l10n-id="better-bibtex_preferences_advanced_extra_merge-tex" preference="extensions.zotero.translators.better-bibtex.extraMergeTeX" native="true"></checkbox>
+      </groupbox>
+    </groupbox>
+    <groupbox class="bbt-prefs-subsection">
+      <label>
+        <html:h2 data-l10n-id="better-bibtex_preferences_advanced_tab_strings"></html:h2>
+      </label>
+      <checkbox data-l10n-id="better-bibtex_preferences_export_fields_import-strings" preference="extensions.zotero.translators.better-bibtex.importBibTeXStrings" native="true"></checkbox>
+      <label data-l10n-id="better-bibtex_preferences_export_fields_export-strings"></label>
+      <menulist preference="extensions.zotero.translators.better-bibtex.exportBibTeXStrings" native="true">
+        <menupopup>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_fields_export-strings_off" value="off"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_fields_export-strings_detect" value="detect"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_fields_export-strings_match" value="match"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_export_fields_export-strings_match_reverse" value="match+reverse"></menuitem>
+        </menupopup>
+      </menulist>
+      <html:textarea preference="extensions.zotero.translators.better-bibtex.strings" cols="80" rows="10"></html:textarea>
+    </groupbox>
+  </groupbox>
+  <groupbox class="bbt-prefs-section">
+    <label>
+      <html:h2 data-l10n-id="better-bibtex_preferences_tab_import"></html:h2>
+    </label>
+    <hbox flex="0">
+      <label data-l10n-id="better-bibtex_preferences_advanced_import_case-protection"></label>
+      <menulist native="true" preference="extensions.zotero.translators.better-bibtex.importCaseProtection">
+        <menupopup>
+          <menuitem data-l10n-id="better-bibtex_preferences_advanced_import_case-protection_as-needed" value="as-needed"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_advanced_import_case-protection_on" value="on"></menuitem>
+          <menuitem data-l10n-id="better-bibtex_preferences_advanced_import_case-protection_off" value="off"></menuitem>
+        </menupopup>
+      </menulist><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-importCaseProtection"/>
+    </hbox>
+    <checkbox data-l10n-id="better-bibtex_preferences_citekey_aux-scanner_import" native="true" preference="extensions.zotero.translators.better-bibtex.auxImport"></checkbox>
+    <hbox flex="0">
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_advanced_import_sentence-case"><img src="chrome://zotero-better-bibtex/content/skin/attention.svg" style="width:16px;height:16px" tooltip="bbt-tooltip-importSentenceCase"/></html:h2>
+        </label>
+        <radiogroup preference="extensions.zotero.translators.better-bibtex.importSentenceCase">
+          <radio data-l10n-id="better-bibtex_preferences_advanced_import_sentence-case_on-guess" native="true" value="on+guess"></radio>
+          <radio data-l10n-id="better-bibtex_preferences_advanced_import_sentence-case_on" native="true" value="on"></radio>
+          <radio data-l10n-id="better-bibtex_preferences_advanced_import_sentence-case_off" native="true" value="off"></radio>
+        </radiogroup>
+      </groupbox>
+    </hbox>
+    <hbox flex="0">
+      <groupbox class="bbt-prefs-subsection">
+        <label>
+          <html:h2 data-l10n-id="better-bibtex_preferences_advanced_import_migrate"></html:h2>
+        </label>
+        <button data-l10n-id="better-bibtex_preferences_advanced_import_export-prefs" oncommand="Zotero.BetterBibTeX.PrefPane.exportPrefs()"></button>
+        <button data-l10n-id="better-bibtex_preferences_advanced_import_prefs" oncommand="Zotero.BetterBibTeX.PrefPane.importPrefs()"></button>
+      </groupbox>
+    </hbox>
+  </groupbox>
+</vbox>
