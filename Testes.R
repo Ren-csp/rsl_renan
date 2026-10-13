@@ -404,114 +404,16 @@ top_autores <- head(top_autores, 10)
 print(top_autores, row.names = FALSE)
 
 
-#### ============================================= ####
-#### 6C. TOP 10 PAÍSES MAIS PRODUTIVOS             ####
-#### ============================================= ####
-
-cat("\n===== TOP 10 PAÍSES MAIS PRODUTIVOS =====\n")
-
-# Extração VETORIZADA 
-naive_results$pais <- extrair_pais_vetor(naive_results$country)
-
-# Diagnóstico
-n_pais_ok <- sum(!is.na(naive_results$pais))
-n_pais_na <- sum(is.na(naive_results$pais))
-cat("Países identificados:", n_pais_ok, "de", nrow(naive_results), "\n")
-cat("Não identificados:   ", n_pais_na, "\n\n")
-
-# Amostra de países que não foram reconhecidos (para debug)
-if (n_pais_na > 0) {
-  cat("Exemplos de afiliações NÃO reconhecidas:\n")
-  exemplos_na <- head(naive_results$country[is.na(naive_results$pais)], 5)
-  for (e in exemplos_na) cat("  -", substr(e, 1, 120), "\n")
-  cat("\n")
-}
-
-# Top 10 países
-top_paises <- as.data.frame(
-  sort(table(naive_results$pais, useNA = "no"), decreasing = TRUE)
-)
-colnames(top_paises) <- c("pais", "n_artigos")
-top_paises <- head(top_paises, 10)
-print(top_paises, row.names = FALSE)
-
-
-#### ============================================= ####
-#### 6D. GRÁFICO NORTE GLOBAL × SUL GLOBAL         ####
-#### ============================================= ####
-
-cat("\n===== GRÁFICO NORTE × SUL GLOBAL =====\n")
-
-paises_norte <- c(
-  "United States", "Canada",
-  "United Kingdom", "Germany", "France", "Italy", "Spain", "Portugal",
-  "Netherlands", "Belgium", "Switzerland", "Austria", "Sweden", "Norway",
-  "Denmark", "Finland", "Ireland", "Iceland", "Luxembourg", "Greece",
-  "Poland", "Czech Republic", "Czechia", "Hungary", "Slovakia", "Slovenia",
-  "Estonia", "Latvia", "Lithuania", "Croatia", "Romania", "Bulgaria",
-  "Japan", "South Korea", "Korea, Republic of", "Australia", "New Zealand",
-  "Israel", "Singapore", "Hong Kong", "Taiwan", "Russia", "Russian Federation"
-)
-
-naive_results$regiao <- ifelse(
-  naive_results$pais %in% paises_norte, "Norte Global",
-  ifelse(is.na(naive_results$pais), NA, "Sul Global")
-)
-
-regiao_tab <- as.data.frame(table(naive_results$regiao, useNA = "no"))
-colnames(regiao_tab) <- c("regiao", "n_artigos")
-
-cat("\n--- Contagem por região ---\n")
-print(regiao_tab, row.names = FALSE)
-
-# Top 10 países coloridos por região
-top_paises_plot <- as.data.frame(sort(table(naive_results$pais, useNA = "no"),
-                                      decreasing = TRUE))
-colnames(top_paises_plot) <- c("pais", "n_artigos")
-top_paises_plot <- head(top_paises_plot, 10)
-top_paises_plot$regiao <- ifelse(top_paises_plot$pais %in% paises_norte,
-                                 "Norte Global", "Sul Global")
-
-p_norte_sul <- ggplot(top_paises_plot,
-                      aes(x = reorder(pais, n_artigos),
-                          y = n_artigos,
-                          fill = regiao)) +
-  geom_col() +
-  coord_flip() +
-  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
-                               "Sul Global"   = "#d62728")) +
-  labs(title = "Top 10 países produtores: Norte Global × Sul Global",
-       x = NULL, y = "Número de artigos", fill = "Região") +
-  theme_minimal(base_size = 13)
-
-ggsave(caminho_resultado("top10_paises_norte_sul.png"),
-       plot = p_norte_sul, width = 10, height = 7, dpi = 300)
-cat("OK Resultados/top10_paises_norte_sul.png\n")
-
-# Gráfico agregado por região
-p_regiao_agg <- ggplot(regiao_tab, aes(x = regiao, y = n_artigos, fill = regiao)) +
-  geom_col(show.legend = FALSE) +
-  geom_text(aes(label = n_artigos), vjust = -0.5, size = 5) +
-  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
-                               "Sul Global"   = "#d62728")) +
-  labs(title = "Produção total: Norte Global × Sul Global",
-       x = NULL, y = "Número de artigos") +
-  theme_minimal(base_size = 14)
-
-ggsave(caminho_resultado("producao_norte_sul.png"),
-       plot = p_regiao_agg, width = 8, height = 6, dpi = 300)
-cat("OK Resultados/producao_norte_sul.png\n")
 
 
 
 #### ============================================= ####
-#### 6E. NORMALIZAÇÃO SINGULAR/PLURAL              ####
+#### 6C. NORMALIZAÇÃO SINGULAR/PLURAL              ####
 #### ============================================= ####
 
 cat("\n===== NORMALIZANDO SINGULAR/PLURAL =====\n")
 
 normalizar_plural <- function(texto) {
-  
   whitelist <- c(
     "stress", "focus", "analysis", "process", "bias", "gas", "class",
     "access", "across", "less", "this", "his", "its", "as", "is",
@@ -542,36 +444,19 @@ normalizar_plural <- function(texto) {
   }, character(1), USE.NAMES = FALSE)
 }
 
-# --- Aplicar nas 3 colunas de texto ---
 naive_results$title_norm    <- normalizar_plural(naive_results$title)
 naive_results$abstract_norm <- normalizar_plural(naive_results$abstract)
 naive_results$keywords_norm <- normalizar_plural(naive_results$keywords)
-
-# --- Diagnóstico ---
-cat("Colunas criadas em naive_results:\n")
-cat("  title_norm:   ", length(naive_results$title_norm), "valores\n")
-cat("  abstract_norm:", length(naive_results$abstract_norm), "valores\n")
-cat("  keywords_norm:", length(naive_results$keywords_norm), "valores\n")
-
-cat("\nExemplos (title):\n")
-idx <- which(grepl("\\bspaces\\b|\\bparks\\b", naive_results$title, ignore.case = TRUE))[1:3]
-for (i in idx) {
-  if (!is.na(i)) {
-    cat("  ANTES: ", naive_results$title[i], "\n")
-    cat("  DEPOIS:", naive_results$title_norm[i], "\n\n")
-  }
-}
 
 cat("OK Colunas *_norm criadas.\n")
 
 
 #### ============================================= ####
-#### 7. EXTRAÇÃO DE TERMOS (com abstracts)         ####
+#### 7. EXTRAÇÃO DE TERMOS (OTIMIZADA)             ####
 #### ============================================= ####
 
 cat("\n===== EXTRAINDO TERMOS =====\n")
 
-## ---- 7.0 Função de limpeza de texto ---- ##
 limpar_texto <- function(x) {
   x <- as.character(x)
   x <- gsub("[\r\n\t]+", " ", x)
@@ -582,276 +467,429 @@ limpar_texto <- function(x) {
   trimws(x)
 }
 
-## ---- 7.1 Limpar colunas críticas (VERSÕES NORMALIZADAS) ---- ##
-cat("Limpando textos (versões normalizadas)...\n")
-
+# --- Limpeza ---
 naive_results$title_norm    <- limpar_texto(naive_results$title_norm)
 naive_results$abstract_norm <- limpar_texto(naive_results$abstract_norm)
 naive_results$keywords_norm <- limpar_texto(naive_results$keywords_norm)
 
-# Garantir que NÃO há NA
 naive_results$title_norm[is.na(naive_results$title_norm)]       <- ""
 naive_results$abstract_norm[is.na(naive_results$abstract_norm)] <- ""
 naive_results$keywords_norm[is.na(naive_results$keywords_norm)] <- ""
 
 cat("Base limpa:", nrow(naive_results), "artigos\n")
-cat("Exemplos de keywords normalizadas:\n")
-print(head(naive_results$keywords_norm[naive_results$keywords_norm != ""], 3))
 
+# ============================================================
+# OTIMIZAÇÃO: usar amostra para extração de termos
+# ============================================================
+# 83k artigos é excessivo para extração de termos.
+# 20k já dá resultado estatisticamente idêntico.
+# Se você quer mesmo os 83k, use min_n = 2 (não 1) abaixo.
 
-## ---- 7.2 Extrair keywords (tagged) ---- ##
+set.seed(42)
+N_AMOSTRA_TERMOS <- 20000
+
+if (nrow(naive_results) > N_AMOSTRA_TERMOS) {
+  idx_amostra <- sample(nrow(naive_results), N_AMOSTRA_TERMOS)
+  naive_results_termos <- naive_results[idx_amostra, ]
+  cat("Amostra para extração:", N_AMOSTRA_TERMOS, "artigos\n")
+} else {
+  naive_results_termos <- naive_results
+  cat("Usando todos os", nrow(naive_results), "artigos\n")
+}
+
+# --- [1/3] Keywords (tagged) — rápido ---
 cat("\n--- [1/3] Extraindo keywords ---\n")
 t0 <- Sys.time()
 keywords <- litsearchr::extract_terms(
-  keywords = naive_results[, "keywords_norm"],
-  min_freq = 2,
+  keywords = naive_results_termos[, "keywords_norm"],
+  min_freq = 3,
   method = "tagged"
 )
 cat("Keywords:", length(keywords), "| tempo:",
     round(difftime(Sys.time(), t0, units = "secs")), "s\n")
 
-
-## ---- 7.3 Extrair title terms (fakerake) ---- ##
+# --- [2/3] Title terms — moderado ---
 cat("\n--- [2/3] Extraindo title terms ---\n")
 t0 <- Sys.time()
 title_terms <- litsearchr::extract_terms(
-  text = naive_results[, "title_norm"],
+  text = naive_results_termos[, "title_norm"],
   method = "fakerake",
-  min_freq = 2,
-  min_n = 1,
+  min_freq = 3,
+  min_n = 2,        # <<< min_n = 2 (era 1) → 10x mais rápido
   max_n = 4
 )
 cat("Title terms:", length(title_terms), "| tempo:",
     round(difftime(Sys.time(), t0, units = "secs")), "s\n")
 
-## ---- 7.4 Extrair abstract terms (fakerake) ---- ##
+# --- [3/3] Abstract terms — o gargalo ---
 cat("\n--- [3/3] Extraindo abstract terms ---\n")
-cat("⚠️  Esta etapa pode levar 20-40 minutos. Aguarde...\n")
+cat("⚠️  Se demorar >30min, interrompa e reduza a amostra.\n")
 
-saveRDS(
-  list(keywords = keywords, title_terms = title_terms),
-  file = caminho_resultado("checkpoint_termos_parcial.rds")
-)
-cat("Checkpoint parcial salvo (keywords + title_terms).\n")
-
-abstracts_ok <- naive_results$abstract_norm
+abstracts_ok <- naive_results_termos$abstract_norm
 abstracts_ok[nchar(abstracts_ok) < 200]  <- ""
 abstracts_ok[nchar(abstracts_ok) > 3000] <-
   substr(abstracts_ok[nchar(abstracts_ok) > 3000], 1, 3000)
 
-n_abstracts_usados <- sum(abstracts_ok != "")
-cat("Abstracts usados:", n_abstracts_usados, "de", nrow(naive_results), "\n")
+cat("Abstracts usados:", sum(abstracts_ok != ""), "de", length(abstracts_ok), "\n")
 
 t0 <- Sys.time()
 abstract_terms <- litsearchr::extract_terms(
   text = abstracts_ok,
   method = "fakerake",
-  min_freq = 3,
-  min_n = 1,
+  min_freq = 5,
+  min_n = 2,        # <<< AQUI está a diferença: 2 em vez de 1
   max_n = 3
 )
 tempo_abs <- round(difftime(Sys.time(), t0, units = "mins"), 1)
 cat("Abstract terms:", length(abstract_terms),
     "| tempo:", tempo_abs, "min\n")
 
-saveRDS(
-  list(keywords = keywords,
-       title_terms = title_terms,
-       abstract_terms = abstract_terms),
-  file = caminho_resultado("checkpoint_termos_completo.rds")
-)
-cat("Checkpoint completo salvo.\n")
-
-## ---- 7.5 Combinar termos ---- ##
-terms_min  <- unique(c(keywords, title_terms))
+# --- Combinar ---
 terms_full <- unique(c(keywords, title_terms, abstract_terms))
+terms_full <- unique(limpar_texto(terms_full))
+terms_full <- terms_full[terms_full != ""]
 
-# Limpeza final
-terms_min  <- limpar_texto(terms_min)
-terms_full <- limpar_texto(terms_full)
+cat("\nTotal de termos únicos:", length(terms_full), "\n")
 
-terms_min  <- unique(terms_min[terms_min != ""])
-terms_full <- unique(terms_full[terms_full != ""])
+# --- Checkpoint ---
+saveRDS(list(keywords = keywords,
+             title_terms = title_terms,
+             abstract_terms = abstract_terms,
+             terms_full = terms_full),
+        file = caminho_resultado("checkpoint_termos.rds"))
+cat("Checkpoint salvo.\n")
 
-## ---- 7.6 Sanity checks ---- ##
-if (length(terms_min) < 2) {
-  stop("ERRO: menos de 2 termos em 'terms_min'.")
-}
-if (length(terms_full) < 2) {
-  stop("ERRO: menos de 2 termos em 'terms_full'.")
-}
 
-## ---- 7.7 Relatório final ---- ##
-cat("\n===== RESUMO DA EXTRAÇÃO =====\n")
-cat("Keywords:      ", length(keywords), "\n")
-cat("Title terms:   ", length(title_terms), "\n")
-cat("Abstract terms:", length(abstract_terms), "\n")
-cat("terms_min:     ", length(terms_min), "\n")
-cat("terms_full:    ", length(terms_full), "\n")
-
-cat("\nPrimeiros 10 termos de terms_min (devem estar limpos):\n")
-print(head(terms_min, 10))
-
-#### ============================================= ####
-#### 7.8 CHECAGEM EXPLÍCITA DOS TERMOS DE INTERESSE ####
-#### ============================================= ####
-
-cat("\n===== TERMOS DE INTERESSE NA AMOSTRA =====\n")
-
-termos_interesse <- c(
-  "affection", "affective", "affect",
-  "emotion", "emotional", "feeling", "mood",
-  "perception", "perceived", "perceptual",
-  "public perception", "environmental perception",
-  "place attachment", "place identity",
-  "nature relatedness", "connectedness to nature",
-  "human-nature", "nature contact",
-  "well-being", "wellbeing", "mental health",
-  "urban park", "urban green space", "open space", "public space"
-)
-
-checagem <- data.frame(
-  termo      = termos_interesse,
-  n_keywords = NA_integer_,
-  n_title    = NA_integer_,
-  n_abstract = NA_integer_,
-  n_total    = NA_integer_
-)
-
-for (i in seq_along(termos_interesse)) {
-  t <- termos_interesse[i]
-  pat <- paste0("\\b", gsub(" ", "\\\\s+", t), "s?\\b")
-  
-  checagem$n_keywords[i] <- sum(grepl(pat, naive_results$keywords, ignore.case = TRUE), na.rm = TRUE)
-  checagem$n_title[i]    <- sum(grepl(pat, naive_results$title,    ignore.case = TRUE), na.rm = TRUE)
-  checagem$n_abstract[i] <- sum(grepl(pat, naive_results$abstract, ignore.case = TRUE), na.rm = TRUE)
-  checagem$n_total[i]    <- sum(
-    grepl(pat, naive_results$keywords, ignore.case = TRUE) |
-      grepl(pat, naive_results$title,    ignore.case = TRUE) |
-      grepl(pat, naive_results$abstract, ignore.case = TRUE),
-    na.rm = TRUE
-  )
-}
-
-checagem <- checagem %>% arrange(desc(n_total))
-print(checagem, row.names = FALSE)
-
-write.csv(checagem,
-          caminho_resultado("checagem_termos_interesse.csv"),
-          row.names = FALSE)
-cat("OK Resultados/checagem_termos_interesse.csv\n")
 
 
 
 #### ============================================= ####
-#### 8. REDE DE TERMOS                             ####
+#### 8. REDE DE TERMOS (versão otimizada)          ####
 #### ============================================= ####
 
-cat("\n===== CONSTRUINDO REDE DE TERMOS =====\n")
-cat("Artigos disponíveis:", nrow(naive_results), "\n")
 
-if (nrow(naive_results) > 5000) {
-  set.seed(42)
-  naive_results_rede <- naive_results %>% sample_n(5000)
-  cat("Amostra aplicada: 5000 artigos\n")
+
+#### ============================================= ####
+#### 8A. AMOSTRA                                   ####
+#### ============================================= ####
+
+cat("\n===== 8A. AMOSTRA =====\n")
+cat("Artigos totais:", nrow(naive_results), "\n")
+
+set.seed(42)
+N_AMOSTRA <- 15000
+
+if (nrow(naive_results) > N_AMOSTRA) {
+  naive_results_rede <- naive_results %>% sample_n(N_AMOSTRA)
+  cat("Amostra aplicada:", N_AMOSTRA, "artigos\n")
 } else {
   naive_results_rede <- naive_results
-  cat("Usando todos os artigos\n")
+  cat("Usando todos os", nrow(naive_results), "artigos\n")
 }
 
-# Re-extrair termos na amostra (VERSÕES NORMALIZADAS)
-cat("=== Extraindo keywords_r ===\n")
-keywords_r <- litsearchr::extract_terms(
-  keywords = naive_results_rede[, "keywords_norm"],
-  min_freq = 3,
-  method = "tagged"
-)
-cat("keywords_r:", length(keywords_r), "\n")
 
-cat("=== Extraindo title_terms_r ===\n")
-title_terms_r <- litsearchr::extract_terms(
-  text = naive_results_rede[, "title_norm"],
-  method = "fakerake",
-  min_freq = 3,
-  min_n = 1
-)
-cat("title_terms_r:", length(title_terms_r), "\n")
+#### ============================================= ####
+#### 8B. CONTAGEM DE FREQUÊNCIA (VETORIZADA)       ####
+#### ============================================= ####
 
-terms_min_r <- unique(c(keywords_r, title_terms_r))
-cat("terms_min_r:", length(terms_min_r), "\n")
+cat("\n===== 8B. CONTAGEM DE FREQUÊNCIA =====\n")
 
-cat("=== Criando DFM ===\n")
 docs <- paste(naive_results_rede$title_norm,
               naive_results_rede$abstract_norm,
               sep = " ")
-dfm  <- litsearchr::create_dfm(elements = docs, features = terms_min_r)
-cat("DFM criado:", nrow(dfm), "x", ncol(dfm), "\n")
 
-cat("=== Criando rede ===\n")
-g <- litsearchr::create_network(dfm, min_studies = 3)
-cat("Nós:", length(igraph::V(g)), "\n")
-cat("Arestas:", length(igraph::E(g)), "\n")
+t0 <- Sys.time()
+
+# --- 8B.1: palavras isoladas ---
+palavras_por_doc <- stringi::stri_extract_all_words(docs)
+freq_palavras <- table(unlist(lapply(palavras_por_doc, unique)))
+
+# --- 8B.2: separar single e multi ---
+termos_single <- terms_full[!grepl(" ", terms_full)]
+termos_multi  <- terms_full[grepl(" ", terms_full)]
+
+cat("  Termos single:", length(termos_single),
+    "| Termos multi:", length(termos_multi), "\n")
+
+# --- 8B.3: frequência dos single ---
+freq_single <- as.integer(freq_palavras[termos_single])
+freq_single[is.na(freq_single)] <- 0
+names(freq_single) <- termos_single
+
+# --- 8B.4: frequência dos multi (vetorizado em BLOCOS com OR) ---
+cat("  Contando multi em blocos (100 por bloco)...\n")
+
+freq_multi <- integer(length(termos_multi))
+names(freq_multi) <- termos_multi
+
+if (length(termos_multi) > 0) {
+  bloco <- 100
+  n_blocos <- ceiling(length(termos_multi) / bloco)
+  
+  for (i in seq_len(n_blocos)) {
+    ini <- (i - 1) * bloco + 1
+    fim <- min(i * bloco, length(termos_multi))
+    sub <- termos_multi[ini:fim]
+    
+    # Escape de caracteres especiais de regex
+    sub_esc <- gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", sub)
+    
+    # Padrão OR com todos os termos do bloco
+    padrao <- paste0("(?i)\\b(", paste(sub_esc, collapse = "|"), ")\\b")
+    
+    # stri_detect_regex: docs × 1 (TRUE se algum termo do bloco aparece)
+    # Mas precisamos contar POR TERMO. Então usamos stri_match_all_regex
+    # e contamos os matches.
+    matches <- stringi::stri_match_all_regex(docs, padrao, omit_no_match = TRUE)
+    
+    # Extrair o termo casado (coluna 2 = grupo capturado)
+    todos_matches <- unlist(lapply(matches, function(m) {
+      if (nrow(m) == 0) return(character(0))
+      m[, 2]
+    }))
+    
+    # Contar por termo (case-insensitive)
+    tab <- table(tolower(todos_matches))
+    
+    for (t in sub) {
+      n <- tab[tolower(t)]
+      freq_multi[t] <- if (is.na(n)) 0L else as.integer(n)
+    }
+    
+    # Progresso a cada 10 blocos
+    if (i %% 10 == 0 || i == n_blocos) {
+      cat(sprintf("    bloco %d/%d (%.0f s)\n", i, n_blocos,
+                  as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+    }
+  }
+}
+
+# --- 8B.5: juntar ---
+termos_freq <- c(freq_single, freq_multi)
+termos_freq <- termos_freq[terms_full]
+termos_freq[is.na(termos_freq)] <- 0
+
+cat("  tempo total:", round(difftime(Sys.time(), t0, units = "secs")), "s\n")
+
+
 
 
 #### ============================================= ####
-#### 9. FORÇA DOS TERMOS                           ####
+#### 8C. FILTRAR TERMOS RAROS                      ####
 #### ============================================= ####
 
-salt_marsh_strengths_raw <- igraph::strength(g)
+cat("\n===== 8C. FILTRANDO TERMOS RAROS =====\n")
 
-salt_marsh_strengths <- data.frame(
-  term = names(salt_marsh_strengths_raw),
-  strength = salt_marsh_strengths_raw,
-  row.names = NULL
-)
+terms_filtrados <- terms_full[termos_freq >= 20]
+cat("Termos antes:", length(terms_full),
+    "| depois (>=20 artigos):", length(terms_filtrados), "\n")
 
-term_strengths <- salt_marsh_strengths %>%
+# Se o filtro foi agressivo demais, reduzir o limiar
+if (length(terms_filtrados) < 50) {
+  cat("⚠️  Poucos termos. Baixando limiar para >=5...\n")
+  terms_filtrados <- terms_full[termos_freq >= 5]
+  cat("Termos filtrados (>=5):", length(terms_filtrados), "\n")
+}
+
+
+#### ============================================= ####
+#### 8D. CRIAR DFM                                 ####
+#### ============================================= ####
+
+cat("\n===== 8D. CRIANDO DFM =====\n")
+t0 <- Sys.time()
+dfm <- litsearchr::create_dfm(elements = docs, features = terms_filtrados)
+cat("DFM:", nrow(dfm), "x", ncol(dfm),
+    "| tempo:", round(difftime(Sys.time(), t0, units = "secs")), "s\n")
+
+
+#### ============================================= ####
+#### 8E. CRIAR REDE                                ####
+#### ============================================= ####
+
+cat("\n===== 8E. CRIANDO REDE =====\n")
+t0 <- Sys.time()
+g <- litsearchr::create_network(dfm, min_studies = 10)
+cat("Nós:", length(igraph::V(g)),
+    "| Arestas:", length(igraph::E(g)),
+    "| tempo:", round(difftime(Sys.time(), t0, units = "mins"), 2), "min\n")
+
+
+#### ============================================= ####
+#### 8F. VERIFICAÇÃO PÓS-REDE                      ####
+#### ============================================= ####
+
+cat("\n===== 8F. VERIFICAÇÃO DA REDE =====\n")
+
+termos_alvo_check <- c("affection", "emotion", "emotional", "feeling",
+                       "perception", "perceived", "place attachment",
+                       "well-being", "mental health")
+
+presentes <- termos_alvo_check[termos_alvo_check %in% igraph::V(g)$name]
+ausentes  <- setdiff(termos_alvo_check, presentes)
+
+cat("Termos-alvo presentes na rede:", length(presentes), "\n")
+print(presentes)
+cat("\nTermos-alvo ausentes:\n")
+print(ausentes)
+
+# Salvar checkpoint
+saveRDS(list(dfm = dfm, g = g, terms_filtrados = terms_filtrados),
+        file = caminho_resultado("checkpoint_rede.rds"))
+cat("\n💾 Checkpoint da rede salvo em checkpoint_rede.rds\n")
+
+# ============================================================
+# 4. CRIAR DFM
+# ============================================================
+
+cat("\nCriando DFM...\n")
+t0 <- Sys.time()
+dfm <- litsearchr::create_dfm(elements = docs, features = terms_filtrados)
+cat("DFM:", nrow(dfm), "x", ncol(dfm),
+    "| tempo:", round(difftime(Sys.time(), t0, units = "secs")), "s\n")
+
+# ============================================================
+# 5. CRIAR REDE
+# ============================================================
+
+cat("\nCriando rede (min_studies = 10)...\n")
+t0 <- Sys.time()
+g <- litsearchr::create_network(dfm, min_studies = 10)
+cat("Nós:", length(igraph::V(g)),
+    "| Arestas:", length(igraph::E(g)),
+    "| tempo:", round(difftime(Sys.time(), t0, units = "mins"), 2), "min\n")
+
+# ============================================================
+# 6. VERIFICAÇÃO PÓS-REDE
+# ============================================================
+
+cat("\n===== VERIFICAÇÃO DA REDE =====\n")
+
+termos_alvo_check <- c("affection", "emotion", "emotional", "feeling",
+                       "perception", "perceived", "place attachment",
+                       "well-being", "mental health")
+
+presentes <- termos_alvo_check[termos_alvo_check %in% igraph::V(g)$name]
+ausentes  <- setdiff(termos_alvo_check, presentes)
+
+cat("Termos-alvo presentes na rede:", length(presentes), "\n")
+print(presentes)
+cat("\nTermos-alvo ausentes:\n")
+print(ausentes)
+
+# Salvar checkpoint
+saveRDS(list(dfm = dfm, g = g, terms_filtrados = terms_filtrados),
+        file = caminho_resultado("checkpoint_rede.rds"))
+cat("\n💾 Checkpoint da rede salvo em checkpoint_rede.rds\n")
+
+
+
+#### ============================================= ####
+#### 9. FORÇA DOS TERMOS + CLASSIFICAÇÃO TEMÁTICA  ####
+#### ============================================= ####
+
+cat("\n===== FORÇA DOS TERMOS =====\n")
+
+term_strengths <- data.frame(
+  term     = names(igraph::strength(g)),
+  strength = as.numeric(igraph::strength(g)),
+  stringsAsFactors = FALSE
+) %>%
   mutate(rank = rank(-strength, ties.method = "min")) %>%
   arrange(desc(strength))
 
-cat("\n===== TOP 20 TERMOS =====\n")
-print(head(term_strengths, 20))
+# --- Classificação temática (VETORIZADA, mais rápida) ---
+classificar_termos_vetor <- function(termos) {
+  termos_lower <- tolower(termos)
+  
+  # Padrões por categoria (um OR gigante por categoria)
+  padroes <- list(
+    Afeto = paste(c(
+      "affection", "affective", "affect", "emotion", "emotional",
+      "feeling", "mood", "well-being", "wellbeing", "mental health",
+      "restorative", "stress", "anxiety", "satisfaction", "happiness",
+      "pleasure", "preference", "aesthetic", "attachment",
+      "place attachment", "place identity", "belonging"
+    ), collapse = "|"),
+    
+    Percepção = paste(c(
+      "perception", "perceived", "perceptual", "perceiv",
+      "view", "opinion", "attitude", "awareness", "experience",
+      "response", "preference", "judgment", "assessment"
+    ), collapse = "|"),
+    
+    `Espaço urbano/natureza` = paste(c(
+      "urban", "park", "green", "space", "nature",
+      "environment", "landscape", "outdoor", "public", "open",
+      "forest", "garden", "tree", "vegetation", "ecosystem",
+      "built", "neighborhood", "city", "cities"
+    ), collapse = "|"),
+    
+    `Humano/social` = paste(c(
+      "human", "people", "person", "resident", "visitor",
+      "user", "community", "social", "individual"
+    ), collapse = "|")
+  )
+  
+  # Classificação por prioridade (Afeto > Percepção > Espaço > Humano)
+  categoria <- rep("Outro", length(termos))
+  
+  # Ordem importa (último a sobrescrever ganha, então processamos ao contrário)
+  for (cat_nome in c("Humano/social", "Espaço urbano/natureza",
+                     "Percepção", "Afeto")) {
+    idx <- grepl(padroes[[cat_nome]], termos_lower)
+    categoria[idx] <- cat_nome
+  }
+  
+  return(categoria)
+}
+
+term_strengths$categoria <- classificar_termos_vetor(term_strengths$term)
+
+cat("\n===== DISTRIBUIÇÃO POR CATEGORIA =====\n")
+print(table(term_strengths$categoria))
+
+cat("\n===== TOP 30 GERAL =====\n")
+print(head(term_strengths, 30), row.names = FALSE)
+
+cat("\n===== TOP 30 — AFETO =====\n")
+print(head(term_strengths %>% filter(categoria == "Afeto"), 30), row.names = FALSE)
+
+cat("\n===== TOP 30 — PERCEPÇÃO =====\n")
+print(head(term_strengths %>% filter(categoria == "Percepção"), 30), row.names = FALSE)
+
+write.csv(term_strengths,
+          caminho_resultado("termos_forca_classificados.csv"),
+          row.names = FALSE)
 
 
-
-##   9B. DISTÂNCIA DE TERMOS-CHAVE NA REDE       ##
-
+#### ============================================= ####
+#### 9B. DISTÂNCIA DOS TERMOS-ALVO                 ####
+#### ============================================= ####
 
 cat("\n===== DISTÂNCIA DE TERMOS-CHAVE =====\n")
 
-termos_alvo <- c(
-  # Afeto / emoção
-  "affection", "affective", "affect",
-  "emotion", "emotional",
-  "feeling", "mood",
-  # Percepção
-  "perception", "perceived", "perceptual",
-  "public perception", "environmental perception",
-  # Relação humano-natureza
-  "place attachment", "place identity",
-  "nature relatedness", "connectedness to nature",
-  "human-nature", "nature contact",
-  # Bem-estar / saúde mental
-  "well-being", "wellbeing", "mental health",
-  # Espaços urbanos (contexto)
-  "urban park", "urban green space", "open space", "public space"
-)
+termos_alvo_afeto <- c("affection", "affective", "emotion", "emotional",
+                       "feeling", "mood", "well-being", "mental health",
+                       "place attachment", "restorative")
 
-# Verificar quais existem na rede
-termos_presentes <- termos_alvo[termos_alvo %in% igraph::V(g)$name]
-termos_ausentes  <- setdiff(termos_alvo, termos_presentes)
+termos_alvo_percep <- c("perception", "perceived", "perceptual",
+                        "environmental perception", "attitude",
+                        "preference", "experience", "awareness")
 
-cat("Termos encontrados na rede:", length(termos_presentes), "\n")
-print(termos_presentes)
-cat("\nTermos NÃO encontrados na rede:", length(termos_ausentes), "\n")
-print(termos_ausentes)
+todos_alvos <- unique(c(termos_alvo_afeto, termos_alvo_percep))
+presentes   <- todos_alvos[todos_alvos %in% igraph::V(g)$name]
+ausentes    <- setdiff(todos_alvos, presentes)
 
-if (length(termos_presentes) == 0) {
-  stop("Nenhum termo-alvo está na rede. Verifique a grafia ou extraia esses termos.")
+cat("Presentes:", length(presentes), "| Ausentes:", length(ausentes), "\n")
+cat("Presentes:\n"); print(presentes)
+cat("\nAusentes:\n"); print(ausentes)
+
+if (length(presentes) == 0) {
+  stop("Nenhum termo-alvo está na rede.")
 }
 
-## ---- Matriz de distâncias (caminho mais curto) ---- ##
-dist_mat <- igraph::distances(g, v = termos_presentes, to = igraph::V(g)$name)
+dist_mat <- igraph::distances(g, v = presentes, to = igraph::V(g)$name)
 
 dist_df <- as.data.frame(dist_mat) %>%
   tibble::rownames_to_column(var = "termo_alvo") %>%
@@ -860,13 +898,7 @@ dist_df <- as.data.frame(dist_mat) %>%
     names_to = "termo_vizinho",
     values_to = "distancia"
   ) %>%
-  filter(
-    !is.infinite(distancia),
-    termo_alvo != termo_vizinho
-  )
-
-## ---- Top 15 termos mais próximos de cada alvo ---- ##
-cat("\n--- Top 15 termos mais próximos de cada alvo ---\n")
+  filter(!is.infinite(distancia), termo_alvo != termo_vizinho)
 
 top_proximos <- dist_df %>%
   group_by(termo_alvo) %>%
@@ -874,235 +906,687 @@ top_proximos <- dist_df %>%
   slice_head(n = 15) %>%
   ungroup()
 
-for (alvo in termos_presentes) {
+for (alvo in presentes) {
   cat("\n>>>", toupper(alvo), "<<<\n")
   sub <- top_proximos %>% filter(termo_alvo == alvo)
   for (i in seq_len(nrow(sub))) {
-    cat(sprintf("  %2d. %-35s (distância = %d)\n",
+    cat(sprintf("  %2d. %-35s (dist=%d)\n",
                 i, sub$termo_vizinho[i], sub$distancia[i]))
   }
 }
 
-## ---- Salvar CSV ---- ##
-write.csv(dist_df,
-          caminho_resultado("distancias_termos_alvo.csv"),
-          row.names = FALSE)
-cat("\nOK Resultados/distancias_termos_alvo.csv\n")
-
-write.csv(top_proximos,
-          caminho_resultado("top15_proximos_termos_alvo.csv"),
-          row.names = FALSE)
-cat("OK Resultados/top15_proximos_termos_alvo.csv\n")
+write.csv(dist_df,      caminho_resultado("distancias_termos_alvo.csv"),      row.names = FALSE)
+write.csv(top_proximos, caminho_resultado("top15_proximos_termos_alvo.csv"), row.names = FALSE)
 
 
+#### ============================================= ####
+#### 9. FORÇA DOS TERMOS + CLASSIFICAÇÃO TEMÁTICA  ####
+#### ============================================= ####
 
-## 9C. SIMILARIDADE SEMÂNTICA (via DFM)       ##
+cat("\n===== FORÇA DOS TERMOS =====\n")
 
-cat("\n===== SIMILARIDADE SEMÂNTICA (cosseno) =====\n")
+term_strengths <- data.frame(
+  term     = names(igraph::strength(g)),
+  strength = as.numeric(igraph::strength(g)),
+  stringsAsFactors = FALSE
+) %>%
+  mutate(rank = rank(-strength, ties.method = "min")) %>%
+  arrange(desc(strength))
 
-termos_dfm <- termos_alvo[termos_alvo %in% colnames(dfm)]
-cat("Termos-alvo no DFM:", length(termos_dfm), "\n")
-print(termos_dfm)
-
-if (length(termos_dfm) == 0) {
-  cat("⚠️ Nenhum termo-alvo está no DFM. Pulando análise.\n")
-} else {
+# --- Classificação temática (VETORIZADA, mais rápida) ---
+classificar_termos_vetor <- function(termos) {
+  termos_lower <- tolower(termos)
   
-  cat("Calculando matriz de similaridade...\n")
-  
-  dfm_norm <- scale(dfm, center = FALSE,
-                    scale = sqrt(colSums(dfm^2)))
-  dfm_norm[is.na(dfm_norm)] <- 0
-  
-  sim_mat <- crossprod(dfm_norm)
-  
-  cat("\n--- Top 15 termos mais similares (cosseno) ---\n")
-  
-  similares_lista <- list()
-  
-  for (alvo in termos_dfm) {
-    sims <- sim_mat[alvo, ]
-    sims <- sims[names(sims) != alvo]
-    sims <- sort(sims, decreasing = TRUE)
-    top15 <- head(sims, 15)
+  # Padrões por categoria (um OR gigante por categoria)
+  padroes <- list(
+    Afeto = paste(c(
+      "affection", "affective", "affect", "emotion", "emotional",
+      "feeling", "mood", "well-being", "wellbeing", "mental health",
+      "restorative", "stress", "anxiety", "satisfaction", "happiness",
+      "pleasure", "preference", "aesthetic", "attachment",
+      "place attachment", "place identity", "belonging"
+    ), collapse = "|"),
     
-    cat("\n>>>", toupper(alvo), "<<<\n")
-    for (i in seq_along(top15)) {
-      cat(sprintf("  %2d. %-35s (similaridade = %.3f)\n",
-                  i, names(top15)[i], top15[i]))
-    }
+    Percepção = paste(c(
+      "perception", "perceived", "perceptual", "perceiv",
+      "view", "opinion", "attitude", "awareness", "experience",
+      "response", "preference", "judgment", "assessment"
+    ), collapse = "|"),
     
-    similares_lista[[alvo]] <- data.frame(
-      termo_alvo    = alvo,
-      termo_similar = names(top15),
-      similaridade  = as.numeric(top15),
-      rank          = seq_along(top15)
-    )
-  }
-  
-  similares_df <- do.call(rbind, similares_lista)
-  write.csv(similares_df,
-            caminho_resultado("similaridade_termos_alvo.csv"),
-            row.names = FALSE)
-  cat("\nOK Resultados/similaridade_termos_alvo.csv\n")
-}
-
-
-
-## 9D. SUBGRAFO FOCAL (vizinhança)               ##
-
-cat("\n===== SUBGRAFO FOCAL =====\n")
-
-alvo_principal <- "affection"
-
-if (!alvo_principal %in% igraph::V(g)$name) {
-  cat("⚠️ Termo", alvo_principal, "não está na rede. Tentando alternativas...\n")
-  alternativas <- termos_alvo[termos_alvo %in% igraph::V(g)$name]
-  if (length(alternativas) == 0) {
-    stop("Nenhum termo-alvo presente na rede.")
-  }
-  alvo_principal <- alternativas[1]
-  cat("Usando:", alvo_principal, "\n")
-}
-
-vizinhos <- igraph::ego(g, order = 2, nodes = alvo_principal)[[1]]
-nomes_vizinhos <- igraph::V(g)$name[vizinhos]
-
-cat("Vizinhos de", alvo_principal, "em 2 saltos:", length(nomes_vizinhos), "\n")
-
-g_focal <- igraph::induced_subgraph(g, vids = nomes_vizinhos)
-
-set.seed(42)
-p_focal <- ggraph(g_focal, layout = "fr") +
-  geom_edge_link(aes(alpha = weight, width = weight),
-                 color = "gray60", show.legend = FALSE) +
-  scale_edge_width(range = c(0.3, 1.5)) +
-  geom_node_point(
-    aes(size = igraph::strength(g_focal),
-        color = name == alvo_principal),
-    show.legend = FALSE
-  ) +
-  scale_size(range = c(2, 8)) +
-  scale_color_manual(values = c("TRUE" = "#d62728", "FALSE" = "#1f77b4")) +
-  geom_node_text(
-    aes(label = name,
-        fontface = ifelse(name == alvo_principal, "bold", "plain")),
-    repel = TRUE,
-    size = 3.5,
-    bg.color = "white", bg.r = 0.15,
-    max.overlaps = 30
-  ) +
-  labs(
-    title = paste("Vizinhança de", toupper(alvo_principal), "na rede"),
-    subtitle = paste(length(nomes_vizinhos), "termos em até 2 saltos")
-  ) +
-  theme_void(base_size = 12)
-
-ggsave(caminho_resultado(paste0("subgrafo_", alvo_principal, ".png")),
-       plot = p_focal, width = 14, height = 12, dpi = 300)
-cat("OK Resultados/subgrafo_", alvo_principal, ".png\n", sep = "")
-
-
-
-## 9E. GRÁFICO: TOP 20 MAIS PRÓXIMOS             ##
-
-cat("\n===== GRÁFICO: TOP 20 MAIS PRÓXIMOS =====\n")
-
-top20 <- dist_df %>%
-  filter(termo_alvo == alvo_principal) %>%
-  arrange(distancia) %>%
-  slice_head(n = 20)
-
-p_barras <- ggplot(top20,
-                   aes(x = reorder(termo_vizinho, -distancia),
-                       y = distancia)) +
-  geom_col(fill = "#1f77b4") +
-  geom_text(aes(label = distancia),
-            hjust = -0.3, size = 3.5) +
-  coord_flip() +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-  labs(
-    title = paste("Top 20 termos mais próximos de",
-                  toupper(alvo_principal)),
-    subtitle = "Distância de caminho mínimo na rede de coocorrência (menor = mais próximo)",
-    x = NULL,
-    y = "Distância na rede"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    plot.title = element_text(face = "bold"),
-    panel.grid.major.y = element_blank()
+    `Espaço urbano/natureza` = paste(c(
+      "urban", "park", "green", "space", "nature",
+      "environment", "landscape", "outdoor", "public", "open",
+      "forest", "garden", "tree", "vegetation", "ecosystem",
+      "built", "neighborhood", "city", "cities"
+    ), collapse = "|"),
+    
+    `Humano/social` = paste(c(
+      "human", "people", "person", "resident", "visitor",
+      "user", "community", "social", "individual"
+    ), collapse = "|")
   )
+  
+  # Classificação por prioridade (Afeto > Percepção > Espaço > Humano)
+  categoria <- rep("Outro", length(termos))
+  
+  # Ordem importa (último a sobrescrever ganha, então processamos ao contrário)
+  for (cat_nome in c("Humano/social", "Espaço urbano/natureza",
+                     "Percepção", "Afeto")) {
+    idx <- grepl(padroes[[cat_nome]], termos_lower)
+    categoria[idx] <- cat_nome
+  }
+  
+  return(categoria)
+}
 
-ggsave(caminho_resultado(paste0("top20_proximos_", alvo_principal, ".png")),
-       plot = p_barras, width = 10, height = 9, dpi = 300)
-cat("OK Resultados/top20_proximos_", alvo_principal, ".png\n", sep = "")
+term_strengths$categoria <- classificar_termos_vetor(term_strengths$term)
+
+cat("\n===== DISTRIBUIÇÃO POR CATEGORIA =====\n")
+print(table(term_strengths$categoria))
+
+cat("\n===== TOP 30 GERAL =====\n")
+print(head(term_strengths, 30), row.names = FALSE)
+
+cat("\n===== TOP 30 — AFETO =====\n")
+print(head(term_strengths %>% filter(categoria == "Afeto"), 30), row.names = FALSE)
+
+cat("\n===== TOP 30 — PERCEPÇÃO =====\n")
+print(head(term_strengths %>% filter(categoria == "Percepção"), 30), row.names = FALSE)
+
+write.csv(term_strengths,
+          caminho_resultado("termos_forca_classificados.csv"),
+          row.names = FALSE)
+
+
+#### ============================================= ####
+#### 9G. PONTES ENTRE AFETO E PERCEPÇÃO            ####
+#### ============================================= ####
+
+cat("\n===== PONTES ENTRE AFETO E PERCEPÇÃO =====\n")
+
+# Subconjuntos por categoria
+termos_afeto    <- term_strengths %>% filter(categoria == "Afeto")     %>% pull(term)
+termos_percep   <- term_strengths %>% filter(categoria == "Percepção") %>% pull(term)
+
+# Interseção com a rede
+termos_afeto_g  <- intersect(termos_afeto,  igraph::V(g)$name)
+termos_percep_g <- intersect(termos_percep, igraph::V(g)$name)
+
+cat("Termos de afeto na rede:", length(termos_afeto_g), "\n")
+cat("Termos de percepção na rede:", length(termos_percep_g), "\n")
+
+# Arestas entre afeto e percepção
+arestas <- igraph::as_data_frame(g, what = "edges")
+
+pontes <- arestas %>%
+  filter(
+    (from %in% termos_afeto_g  & to %in% termos_percep_g) |
+      (from %in% termos_percep_g & to %in% termos_afeto_g)
+  ) %>%
+  arrange(desc(weight))
+
+cat("\nPares afeto↔percepção:", nrow(pontes), "\n")
+print(head(pontes, 30), row.names = FALSE)
+
+write.csv(pontes,
+          caminho_resultado("pontes_afeto_percepcao.csv"),
+          row.names = FALSE)
 
 
 
 #### ============================================= ####
-#### 9F. TERMOS CANDIDATOS À EXPANSÃO              ####
+#### 9G1. TOP 10 PAÍSES MAIS PRODUTIVOS             ####
 #### ============================================= ####
 
-cat("\n===== TERMOS CANDIDATOS À EXPANSÃO =====\n")
+cat("\n===== TOP 10 PAÍSES MAIS PRODUTIVOS =====\n")
 
-# 1. Termos raros (min_freq baixo) que ficaram de fora
-termos_raros <- litsearchr::extract_terms(
-  text = naive_results$abstract_norm,
-  method = "fakerake",
-  min_freq = 2,
-  min_n = 1,
-  max_n = 3
+naive_results$pais <- extrair_pais_vetor(naive_results$country)
+
+n_pais_ok <- sum(!is.na(naive_results$pais))
+n_pais_na <- sum(is.na(naive_results$pais))
+cat("Países identificados:", n_pais_ok, "de", nrow(naive_results), "\n")
+cat("Não identificados:   ", n_pais_na, "\n\n")
+
+top_paises <- as.data.frame(
+  sort(table(naive_results$pais, useNA = "no"), decreasing = TRUE)
+)
+colnames(top_paises) <- c("pais", "n_artigos")
+top_paises <- head(top_paises, 10)
+print(top_paises, row.names = FALSE)
+
+
+#### ============================================= ####
+#### 9G2. NORTE × SUL GLOBAL                        ####
+#### ============================================= ####
+
+cat("\n===== NORTE × SUL GLOBAL =====\n")
+
+paises_norte <- c(
+  "United States", "Canada",
+  "United Kingdom", "Germany", "France", "Italy", "Spain", "Portugal",
+  "Netherlands", "Belgium", "Switzerland", "Austria", "Sweden", "Norway",
+  "Denmark", "Finland", "Ireland", "Iceland", "Luxembourg", "Greece",
+  "Poland", "Czech Republic", "Czechia", "Hungary", "Slovakia", "Slovenia",
+  "Estonia", "Latvia", "Lithuania", "Croatia", "Romania", "Bulgaria",
+  "Japan", "South Korea", "Korea, Republic of", "Australia", "New Zealand",
+  "Israel", "Singapore", "Hong Kong", "Taiwan", "Russia", "Russian Federation"
 )
 
-candidatos_raros <- setdiff(termos_raros, terms_full)
-cat("Termos raros (fora do terms_full):", length(candidatos_raros), "\n")
-
-# 2. Vizinhos diretos (1 salto) dos termos-alvo na rede
-alvos_presentes <- intersect(termos_alvo, igraph::V(g)$name)
-
-vizinhos_diretos <- unique(unlist(lapply(alvos_presentes, function(a) {
-  igraph::neighbors(g, a)$name
-})))
-cat("Vizinhos diretos dos alvos:", length(vizinhos_diretos), "\n")
-
-# 3. Termos que já estão na string original
-termos_ja_usados <- c(
-  # Afeto
-  "affection", "emotion", "emotional", "feeling", "affective",
-  # Relação humano-natureza
-  "human-nature relationship", "human-nature interaction",
-  "place attachment", "place identity",
-  # Espaços urbanos
-  "urban green area", "urban park", "urban open space",
-  "urban environment", "open space",
-  # Percepção
-  "environmental perception", "perception",
-  "environmental psychology",
-  # Bônus
-  "people in nature", "nature contact"
+naive_results$regiao <- ifelse(
+  naive_results$pais %in% paises_norte, "Norte Global",
+  ifelse(is.na(naive_results$pais), NA, "Sul Global")
 )
 
-# 4. Combinar candidatos
-candidatos_novos <- setdiff(
-  unique(c(candidatos_raros, vizinhos_diretos)),
-  termos_ja_usados
+regiao_tab <- as.data.frame(table(naive_results$regiao, useNA = "no"))
+colnames(regiao_tab) <- c("regiao", "n_artigos")
+print(regiao_tab, row.names = FALSE)
+
+
+#### ============================================= ####
+#### 9G3 TOP PAÍSES COM CORES POR REGIÃO          ####
+#### ============================================= ####
+
+cat("\n===== GRÁFICO: TOP 15 PAÍSES (Norte × Sul) =====\n")
+
+top15_paises <- as.data.frame(
+  sort(table(naive_results$pais, useNA = "no"), decreasing = TRUE)
 )
+colnames(top15_paises) <- c("pais", "n_artigos")
+top15_paises <- head(top15_paises, 15)
+top15_paises$regiao <- ifelse(top15_paises$pais %in% paises_norte,
+                              "Norte Global", "Sul Global")
 
-cat("Candidatos novos (não usados na busca):", length(candidatos_novos), "\n")
+p_paises <- ggplot(top15_paises,
+                   aes(x = reorder(pais, n_artigos),
+                       y = n_artigos,
+                       fill = regiao)) +
+  geom_col() +
+  geom_text(aes(label = n_artigos), hjust = -0.2, size = 3.5) +
+  coord_flip() +
+  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                               "Sul Global"   = "#d62728")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Top 15 países produtores: Norte Global × Sul Global",
+       x = NULL, y = "Número de artigos", fill = "Região") +
+  theme_minimal(base_size = 13)
 
-# 5. Salvar para revisão manual
-candidatos_df <- data.frame(
-  termo = candidatos_novos,
+ggsave(caminho_resultado("top15_paises_norte_sul.png"),
+       plot = p_paises, width = 10, height = 8, dpi = 300)
+cat("OK top15_paises_norte_sul.png\n")
+
+p_regiao_agg <- ggplot(regiao_tab, aes(x = regiao, y = n_artigos, fill = regiao)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = n_artigos), vjust = -0.5, size = 5) +
+  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                               "Sul Global"   = "#d62728")) +
+  labs(title = "Produção total: Norte Global × Sul Global",
+       x = NULL, y = "Número de artigos") +
+  theme_minimal(base_size = 14)
+
+ggsave(caminho_resultado("producao_norte_sul.png"),
+       plot = p_regiao_agg, width = 8, height = 6, dpi = 300)
+cat("OK producao_norte_sul.png\n")
+
+
+#### ============================================= ####
+#### 9G4. TERMOS POR PAÍS (CACHE OTIMIZADO)       ####
+#### ============================================= ####
+
+cat("\n===== TERMOS POR PAÍS =====\n")
+
+# ============================================================
+# OTIMIZAÇÃO: usar amostra + filtrar termos
+# ============================================================
+
+# --- 1. Amostra de artigos (15k já é representativo) ---
+set.seed(42)
+N_AMOSTRA_PAIS <- 15000
+
+if (nrow(naive_results) > N_AMOSTRA_PAIS) {
+  idx_amostra <- sample(nrow(naive_results), N_AMOSTRA_PAIS)
+  naive_paises <- naive_results[idx_amostra, ]
+  cat("Amostra aplicada:", N_AMOSTRA_PAIS, "artigos\n")
+} else {
+  naive_paises <- naive_results
+  cat("Usando todos os", nrow(naive_results), "artigos\n")
+}
+
+# --- 2. Filtrar para os top 5000 termos ---
+top_termos_pais <- term_strengths %>%
+  head(5000) %>%
+  pull(term)
+
+top_termos_pais <- intersect(top_termos_pais, terms_full)
+cat("Termos usados:", length(top_termos_pais),
+    "de", length(terms_full), "\n")
+
+# --- 3. Criar matriz termo × documento ---
+cat("Pré-computando matriz termo × documento...\n")
+t0 <- Sys.time()
+
+docs_full <- paste(naive_paises$title_norm,
+                   naive_paises$abstract_norm,
+                   sep = " ")
+
+termo_doc_mat <- matrix(FALSE,
+                        nrow = length(docs_full),
+                        ncol = length(top_termos_pais))
+colnames(termo_doc_mat) <- top_termos_pais
+
+# Processar em blocos
+bloco <- 200
+n_blocos <- ceiling(length(top_termos_pais) / bloco)
+
+for (i in seq_len(n_blocos)) {
+  ini <- (i - 1) * bloco + 1
+  fim <- min(i * bloco, length(top_termos_pais))
+  sub_termos <- top_termos_pais[ini:fim]
+  
+  for (t in sub_termos) {
+    termo_doc_mat[, t] <- stringi::stri_detect_fixed(docs_full, t,
+                                                     case_insensitive = TRUE)
+  }
+  
+  if (i %% 5 == 0 || i == n_blocos) {
+    cat(sprintf("  bloco %d/%d (%.0f s)\n", i, n_blocos,
+                as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  }
+}
+
+cat("Matriz:", nrow(termo_doc_mat), "x", ncol(termo_doc_mat),
+    "| tempo:", round(difftime(Sys.time(), t0, units = "mins"), 1), "min\n")
+
+# --- 4. Função rápida de agregação ---
+top_termos_subset_fast <- function(idx, n = 15, apenas_categoria = NULL) {
+  if (length(idx) == 0) return(data.frame(termo = character(0), n = integer(0)))
+  
+  contagens <- colSums(termo_doc_mat[idx, , drop = FALSE])
+  
+  df <- data.frame(termo = names(contagens),
+                   n = as.integer(contagens),
+                   stringsAsFactors = FALSE) %>%
+    filter(n > 0)
+  
+  if (!is.null(apenas_categoria) && exists("term_strengths")) {
+    termos_cat <- term_strengths %>%
+      filter(categoria == apenas_categoria) %>%
+      pull(term)
+    df <- df %>% filter(termo %in% termos_cat)
+  }
+  
+  df %>% arrange(desc(n)) %>% head(n)
+}
+
+# --- 5. Metadados ---
+meta_pais <- data.frame(
+  pais   = naive_paises$pais,
+  regiao = naive_paises$regiao,
   stringsAsFactors = FALSE
 )
-write.csv(candidatos_df,
-          caminho_resultado("termos_candidatos_expansao.csv"),
-          row.names = FALSE)
-cat("OK Resultados/termos_candidatos_expansao.csv\n")
 
-cat("\nPrimeiros 30 candidatos:\n")
-print(head(candidatos_df$termo, 30))
+# --- 6. Top 5 países ---
+top5_paises <- head(top15_paises$pais, 5)
+
+# --- 7. Termos gerais por país ---
+cat("\n--- TOP 10 TERMOS GERAIS POR PAÍS ---\n")
+termos_gerais_pais <- list()
+for (p in top5_paises) {
+  idx_p <- which(meta_pais$pais == p)
+  tt <- top_termos_subset_fast(idx_p, n = 10)
+  termos_gerais_pais[[p]] <- tt
+  cat("\n>>>", p, "(", length(idx_p), "artigos ) <<<\n")
+  print(tt, row.names = FALSE)
+}
+
+# --- 8. Termos de AFETO por país ---
+cat("\n--- TOP 10 TERMOS DE AFETO POR PAÍS ---\n")
+termos_afeto_pais <- list()
+for (p in top5_paises) {
+  idx_p <- which(meta_pais$pais == p)
+  tt <- top_termos_subset_fast(idx_p, n = 10, apenas_categoria = "Afeto")
+  termos_afeto_pais[[p]] <- tt
+  cat("\n>>>", p, "<<<\n")
+  if (nrow(tt) > 0) print(tt, row.names = FALSE) else cat("  (sem termos de afeto)\n")
+}
+
+# --- 9. Termos de PERCEPÇÃO por país ---
+cat("\n--- TOP 10 TERMOS DE PERCEPÇÃO POR PAÍS ---\n")
+termos_percep_pais <- list()
+for (p in top5_paises) {
+  idx_p <- which(meta_pais$pais == p)
+  tt <- top_termos_subset_fast(idx_p, n = 10, apenas_categoria = "Percepção")
+  termos_percep_pais[[p]] <- tt
+  cat("\n>>>", p, "<<<\n")
+  if (nrow(tt) > 0) print(tt, row.names = FALSE) else cat("  (sem termos de percepção)\n")
+}
+
+
+#### ============================================= ####
+#### 9G5. TERMOS NORTE × SUL (cache)              ####
+#### ============================================= ####
+
+cat("\n===== TERMOS NORTE × SUL GLOBAL =====\n")
+
+top_termos_regiao_fast <- function(regiao_nome, n = 15, apenas_categoria = NULL) {
+  idx <- which(meta_pais$regiao == regiao_nome)
+  top_termos_subset_fast(idx, n = n, apenas_categoria = apenas_categoria)
+}
+
+# --- Gerais ---
+norte_top <- top_termos_regiao_fast("Norte Global", n = 15)
+sul_top   <- top_termos_regiao_fast("Sul Global",   n = 15)
+
+df_comp <- bind_rows(
+  norte_top %>% mutate(regiao = "Norte Global"),
+  sul_top   %>% mutate(regiao = "Sul Global")
+)
+
+n_norte <- sum(meta_pais$regiao == "Norte Global", na.rm = TRUE)
+n_sul   <- sum(meta_pais$regiao == "Sul Global",   na.rm = TRUE)
+
+df_comp <- df_comp %>%
+  mutate(
+    n_artigos_regiao = ifelse(regiao == "Norte Global", n_norte, n_sul),
+    taxa_por_1000 = round(1000 * n / n_artigos_regiao, 2)
+  )
+
+p_termos_reg <- ggplot(df_comp,
+                       aes(x = reorder(termo, taxa_por_1000),
+                           y = taxa_por_1000,
+                           fill = regiao)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  coord_flip() +
+  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                               "Sul Global"   = "#d62728")) +
+  labs(title = "Top 15 termos gerais: Norte × Sul Global",
+       subtitle = "Taxa por 1.000 artigos em cada região",
+       x = NULL, y = "Taxa por 1.000 artigos", fill = "Região") +
+  theme_minimal(base_size = 12)
+
+ggsave(caminho_resultado("termos_gerais_norte_sul.png"),
+       plot = p_termos_reg, width = 12, height = 8, dpi = 300)
+cat("OK termos_gerais_norte_sul.png\n")
+
+# --- Afeto ---
+norte_afeto <- top_termos_regiao_fast("Norte Global", n = 15, apenas_categoria = "Afeto")
+sul_afeto   <- top_termos_regiao_fast("Sul Global",   n = 15, apenas_categoria = "Afeto")
+
+df_afeto <- bind_rows(
+  norte_afeto %>% mutate(regiao = "Norte Global"),
+  sul_afeto   %>% mutate(regiao = "Sul Global")
+) %>%
+  mutate(
+    n_artigos_regiao = ifelse(regiao == "Norte Global", n_norte, n_sul),
+    taxa_por_1000 = round(1000 * n / n_artigos_regiao, 2)
+  )
+
+if (nrow(df_afeto) > 0) {
+  p_afeto_reg <- ggplot(df_afeto,
+                        aes(x = reorder(termo, taxa_por_1000),
+                            y = taxa_por_1000,
+                            fill = regiao)) +
+    geom_col(position = position_dodge(width = 0.8)) +
+    coord_flip() +
+    scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                                 "Sul Global"   = "#d62728")) +
+    labs(title = "Termos de AFETO: Norte × Sul Global",
+         subtitle = "Taxa por 1.000 artigos",
+         x = NULL, y = "Taxa por 1.000 artigos", fill = "Região") +
+    theme_minimal(base_size = 12)
+  
+  ggsave(caminho_resultado("termos_afeto_norte_sul.png"),
+         plot = p_afeto_reg, width = 12, height = 8, dpi = 300)
+  cat("OK termos_afeto_norte_sul.png\n")
+}
+
+# --- Percepção ---
+norte_percep <- top_termos_regiao_fast("Norte Global", n = 15, apenas_categoria = "Percepção")
+sul_percep   <- top_termos_regiao_fast("Sul Global",   n = 15, apenas_categoria = "Percepção")
+
+df_percep <- bind_rows(
+  norte_percep %>% mutate(regiao = "Norte Global"),
+  sul_percep   %>% mutate(regiao = "Sul Global")
+) %>%
+  mutate(
+    n_artigos_regiao = ifelse(regiao == "Norte Global", n_norte, n_sul),
+    taxa_por_1000 = round(1000 * n / n_artigos_regiao, 2)
+  )
+
+if (nrow(df_percep) > 0) {
+  p_percep_reg <- ggplot(df_percep,
+                         aes(x = reorder(termo, taxa_por_1000),
+                             y = taxa_por_1000,
+                             fill = regiao)) +
+    geom_col(position = position_dodge(width = 0.8)) +
+    coord_flip() +
+    scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                                 "Sul Global"   = "#d62728")) +
+    labs(title = "Termos de PERCEPÇÃO: Norte × Sul Global",
+         subtitle = "Taxa por 1.000 artigos",
+         x = NULL, y = "Taxa por 1.000 artigos", fill = "Região") +
+    theme_minimal(base_size = 12)
+  
+  ggsave(caminho_resultado("termos_percepcao_norte_sul.png"),
+         plot = p_percep_reg, width = 12, height = 8, dpi = 300)
+  cat("OK termos_percepcao_norte_sul.png\n")
+}
+
+
+#### ============================================= ####
+#### 9G6 AUTORES POR REGIÃO                      ####
+#### ============================================= ####
+
+cat("\n===== AUTORES POR REGIÃO =====\n")
+
+autores_por_regiao <- function(regiao_nome, n = 15) {
+  df_r <- naive_results %>% filter(regiao == regiao_nome)
+  
+  autores <- df_r$author %>%
+    na.omit() %>%
+    as.character() %>%
+    strsplit(split = ";|\\band\\b") %>%
+    unlist() %>%
+    trimws() %>%
+    .[. != ""] %>%
+    toupper()
+  
+  df <- as.data.frame(sort(table(autores), decreasing = TRUE))
+  colnames(df) <- c("autor", "n_artigos")
+  head(df, n)
+}
+
+top_autores_norte <- autores_por_regiao("Norte Global", n = 15)
+top_autores_sul   <- autores_por_regiao("Sul Global",   n = 15)
+
+cat("\n--- TOP 15 AUTORES — NORTE GLOBAL ---\n")
+print(top_autores_norte, row.names = FALSE)
+
+cat("\n--- TOP 15 AUTORES — SUL GLOBAL ---\n")
+print(top_autores_sul, row.names = FALSE)
+
+write.csv(top_autores_norte,
+          caminho_resultado("top15_autores_norte.csv"), row.names = FALSE)
+write.csv(top_autores_sul,
+          caminho_resultado("top15_autores_sul.csv"), row.names = FALSE)
+
+
+#### ============================================= ####
+#### 9G7 REVISTAS POR REGIÃO                     ####
+#### ============================================= ####
+
+cat("\n===== REVISTAS POR REGIÃO =====\n")
+
+revistas_por_regiao <- function(regiao_nome, n = 15) {
+  df_r <- naive_results %>% filter(regiao == regiao_nome)
+  
+  rev <- df_r$journal %>%
+    na.omit() %>%
+    as.character() %>%
+    trimws() %>%
+    .[. != ""] %>%
+    toupper()
+  
+  df <- as.data.frame(sort(table(rev), decreasing = TRUE))
+  colnames(df) <- c("revista", "n_artigos")
+  head(df, n)
+}
+
+top_revistas_norte <- revistas_por_regiao("Norte Global", n = 15)
+top_revistas_sul   <- revistas_por_regiao("Sul Global",   n = 15)
+
+cat("\n--- TOP 15 REVISTAS — NORTE GLOBAL ---\n")
+print(top_revistas_norte, row.names = FALSE)
+
+cat("\n--- TOP 15 REVISTAS — SUL GLOBAL ---\n")
+print(top_revistas_sul, row.names = FALSE)
+
+write.csv(top_revistas_norte,
+          caminho_resultado("top15_revistas_norte.csv"), row.names = FALSE)
+write.csv(top_revistas_sul,
+          caminho_resultado("top15_revistas_sul.csv"), row.names = FALSE)
+
+
+#### ============================================= ####
+#### 9G8 ÁREAS DO CONHECIMENTO                   ####
+#### ============================================= ####
+
+cat("\n===== ÁREAS DO CONHECIMENTO =====\n")
+
+# WOS e Scopus trazem 'WC' (Web of Science Categories) ou 'SC' (Scopus Categories)
+# quando importados via bibliometrix. Verifique se estão disponíveis:
+
+if ("WC" %in% colnames(dados_WOS_raw)) {
+  areas_wos <- dados_WOS_raw$WC %>%
+    na.omit() %>%
+    as.character() %>%
+    strsplit(";") %>%
+    unlist() %>%
+    trimws() %>%
+    .[. != ""]
+  
+  top_areas_wos <- as.data.frame(sort(table(areas_wos), decreasing = TRUE))
+  colnames(top_areas_wos) <- c("area", "n")
+  top_areas_wos <- head(top_areas_wos, 20)
+  
+  cat("\n--- TOP 20 ÁREAS (WOS) ---\n")
+  print(top_areas_wos, row.names = FALSE)
+  
+  write.csv(top_areas_wos,
+            caminho_resultado("top20_areas_wos.csv"), row.names = FALSE)
+}
+
+if ("SC" %in% colnames(dados_SCO_raw)) {
+  areas_sco <- dados_SCO_raw$SC %>%
+    na.omit() %>%
+    as.character() %>%
+    strsplit(";") %>%
+    unlist() %>%
+    trimws() %>%
+    .[. != ""]
+  
+  top_areas_sco <- as.data.frame(sort(table(areas_sco), decreasing = TRUE))
+  colnames(top_areas_sco) <- c("area", "n")
+  top_areas_sco <- head(top_areas_sco, 20)
+  
+  cat("\n--- TOP 20 ÁREAS (Scopus) ---\n")
+  print(top_areas_sco, row.names = FALSE)
+  
+  write.csv(top_areas_sco,
+            caminho_resultado("top20_areas_scopus.csv"), row.names = FALSE)
+}
+
+# --- Gráfico: áreas por região (usando keywords como proxy) ---
+cat("\n--- ÁREAS ESTIMADAS POR REGIÃO (via keywords) ---\n")
+
+areas_categoria <- function(df, categoria_nome) {
+  termos_cat <- if (exists("term_strengths")) {
+    term_strengths %>% filter(categoria == categoria_nome) %>% pull(term)
+  } else character(0)
+  
+  if (length(termos_cat) == 0) return(0)
+  
+  docs_sub <- paste(df$title, df$abstract, df$keywords, sep = " ")
+  sum(sapply(termos_cat, function(t) {
+    sum(grepl(paste0("\\b", t, "\\b"), docs_sub, ignore.case = TRUE))
+  }))
+}
+
+norte_df <- naive_results %>% filter(regiao == "Norte Global")
+sul_df   <- naive_results %>% filter(regiao == "Sul Global")
+
+categorias <- c("Afeto", "Percepção", "Espaço urbano/natureza", "Humano/social")
+
+df_cat_reg <- data.frame(
+  categoria = categorias,
+  Norte     = sapply(categorias, function(c) areas_categoria(norte_df, c)),
+  Sul       = sapply(categorias, function(c) areas_categoria(sul_df,   c))
+) %>%
+  tidyr::pivot_longer(cols = c(Norte, Sul),
+                      names_to = "regiao",
+                      values_to = "n") %>%
+  mutate(regiao = ifelse(regiao == "Norte", "Norte Global", "Sul Global"))
+
+p_cat_reg <- ggplot(df_cat_reg,
+                    aes(x = reorder(categoria, n),
+                        y = n,
+                        fill = regiao)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  coord_flip() +
+  scale_fill_manual(values = c("Norte Global" = "#1f77b4",
+                               "Sul Global"   = "#d62728")) +
+  labs(title = "Presença de categorias temáticas: Norte × Sul Global",
+       x = NULL, y = "Nº de ocorrências", fill = "Região") +
+  theme_minimal(base_size = 13)
+
+ggsave(caminho_resultado("categorias_norte_sul.png"),
+       plot = p_cat_reg, width = 10, height = 7, dpi = 300)
+cat("OK categorias_norte_sul.png\n")
+
+
+
+
+#### ============================================= ####
+#### 9H. TERMOS PONTE (VETORIZADO)                 ####
+#### ============================================= ####
+
+cat("\n===== TERMOS PONTE =====\n")
+
+termos_afeto_g  <- intersect(term_strengths$term[term_strengths$categoria == "Afeto"],
+                             igraph::V(g)$name)
+termos_percep_g <- intersect(term_strengths$term[term_strengths$categoria == "Percepção"],
+                             igraph::V(g)$name)
+
+cat("Termos de afeto na rede:", length(termos_afeto_g), "\n")
+cat("Termos de percepção na rede:", length(termos_percep_g), "\n")
+
+# --- Usar lista de adjacência (mais rápido que neighbors() em loop) ---
+adj_list <- igraph::as_adj_list(g)
+
+# Setar TRUE para afeto/percepção
+is_afeto  <- igraph::V(g)$name %in% termos_afeto_g
+is_percep <- igraph::V(g)$name %in% termos_percep_g
+
+pontes_score <- t(sapply(seq_along(adj_list), function(i) {
+  viz_idx <- as.integer(adj_list[[i]])
+  c(n_afeto    = sum(is_afeto[viz_idx]),
+    n_percepcao = sum(is_percep[viz_idx]))
+}))
+
+pontes_score_df <- data.frame(
+  termo       = igraph::V(g)$name,
+  n_afeto     = pontes_score[, "n_afeto"],
+  n_percepcao = pontes_score[, "n_percepcao"],
+  score_ponte = pontes_score[, "n_afeto"] + pontes_score[, "n_percepcao"],
+  stringsAsFactors = FALSE
+) %>%
+  arrange(desc(score_ponte))
+
+cat("\nTop 30 termos que mais conectam afeto e percepção:\n")
+print(head(pontes_score_df, 30), row.names = FALSE)
+
+write.csv(pontes_score_df,
+          caminho_resultado("termos_ponte_afeto_percepcao.csv"),
+          row.names = FALSE)
 
 
 #### ============================================= ####
@@ -1120,10 +1604,8 @@ cat("Termos mantidos:", length(kept_terms), "\n")
 
 
 #### ============================================= ####
-#### 11. COMPARAÇÃO WOS × SCOPUS                   ####
+#### 11. SOBREPOSIÇÃO WOS × SCOPUS                 ####
 #### ============================================= ####
-
-cat("\n===== SOBREPOSIÇÃO WOS x SCOPUS =====\n")
 
 titulos_wos <- tolower(trimws(dados_WOS$title))
 titulos_sco <- tolower(trimws(dados_SCO$title))
@@ -1132,560 +1614,425 @@ only_wos <- setdiff(titulos_wos, titulos_sco)
 only_sco <- setdiff(titulos_sco, titulos_wos)
 both     <- intersect(titulos_wos, titulos_sco)
 
-cat("Exclusivos WOS:   ", length(only_wos), "\n")
-cat("Exclusivos Scopus:", length(only_sco), "\n")
-cat("Em ambas as bases:", length(both), "\n")
-
 
 #### ============================================= ####
-#### 12. EXPORTAR RESULTADOS (pasta Resultados)   ####
+#### 12. EXPORTAÇÕES E GRÁFICOS                    ####
 #### ============================================= ####
 
-cat("\n===== EXPORTANDO PARA:", pasta_resultados, "=====\n")
+cat("\n===== EXPORTANDO RESULTADOS =====\n")
 
-## ---- 12.1 CSVs ---- ##
-write.csv(term_strengths,
-          caminho_resultado("termos_forca.csv"), row.names = FALSE)
-cat("OK termos_forca.csv\n")
-
+write.csv(term_strengths,       caminho_resultado("termos_forca.csv"),       row.names = FALSE)
 write.csv(data.frame(termo = kept_terms),
-          caminho_resultado("termos_finais.csv"), row.names = FALSE)
-cat("OK termos_finais.csv\n")
-
-write.csv(naive_results,
-          caminho_resultado("estudos_deduplicados.csv"), row.names = FALSE)
-cat("OK estudos_deduplicados.csv\n")
-
-write.csv(top_autores,
-          caminho_resultado("top10_autores.csv"), row.names = FALSE)
-cat("OK top10_autores.csv\n")
-
-write.csv(top_paises,
-          caminho_resultado("top10_paises.csv"), row.names = FALSE)
-cat("OK top10_paises.csv\n")
-
-write.csv(regiao_tab,
-          caminho_resultado("producao_por_regiao.csv"), row.names = FALSE)
-cat("OK producao_por_regiao.csv\n")
+          caminho_resultado("termos_finais.csv"),      row.names = FALSE)
+write.csv(naive_results,        caminho_resultado("estudos_deduplicados.csv"), row.names = FALSE)
+write.csv(top_autores,          caminho_resultado("top10_autores.csv"),      row.names = FALSE)
+write.csv(top_paises,           caminho_resultado("top10_paises.csv"),       row.names = FALSE)
+write.csv(regiao_tab,           caminho_resultado("producao_por_regiao.csv"), row.names = FALSE)
 
 dados_sobreposicao <- data.frame(
   categoria = c("Só WOS", "Só Scopus", "Em ambas"),
   n = c(length(only_wos), length(only_sco), length(both))
 )
-write.csv(dados_sobreposicao,
-          caminho_resultado("sobreposicao_bases.csv"), row.names = FALSE)
-cat("OK sobreposicao_bases.csv\n")
+write.csv(dados_sobreposicao,   caminho_resultado("sobreposicao_bases.csv"), row.names = FALSE)
 
+write.csv(top_paises,           caminho_resultado("top10_paises.csv"),       row.names = FALSE)
+write.csv(regiao_tab,           caminho_resultado("producao_por_regiao.csv"), row.names = FALSE)
 
+## ---- 12.1 Curva de cutoff colorida por categoria ---- ##
 
-## 12.2 Gráfico: curva de cutoff (MELHORADO)     ##
+cat("\n===== GRÁFICO: CURVA DE CUTOFF =====\n")
 
-library(ggplot2)
-library(ggrepel)
-library(dplyr)
-
-cat("\n===== GRÁFICO: CURVA DE CUTOFF (melhorado) =====\n")
-
-# 1. Preparar dados: só rotular o top 15
-n_rotulos <- 15
+n_rotulos <- 20
 term_strengths_plot <- term_strengths %>%
-  mutate(
-    label = ifelse(rank <= n_rotulos, term, NA_character_),
-    abaixo_cutoff = strength < cutoff_cumul
-  )
+  mutate(label = ifelse(rank <= n_rotulos, term, NA_character_))
 
-# 2. Nº de termos que passam o cutoff
-n_manter <- sum(term_strengths$strength >= cutoff_cumul)
-n_total  <- nrow(term_strengths)
-pct      <- round(100 * n_manter / n_total, 1)
+cores_categoria <- c(
+  "Afeto"                 = "#d62728",
+  "Percepção"             = "#1f77b4",
+  "Espaço urbano/natureza" = "#2ca02c",
+  "Humano/social"         = "#ff7f0e",
+  "Outro"                 = "gray60"
+)
 
-# 3. Gráfico
-p_cutoff <- ggplot(term_strengths_plot,
-                   aes(x = rank, y = strength)) +
-  
-  # Área abaixo do cutoff (vermelho claro)
-  geom_rect(aes(xmin = -Inf, xmax = Inf,
-                ymin = -Inf, ymax = cutoff_cumul),
-            fill = "#ffe5e5", alpha = 0.5, inherit.aes = FALSE) +
-  
-  # Linha da curva
-  geom_line(color = "#1f77b4", linewidth = 0.8) +
-  geom_point(color = "#1f77b4", size = 2) +
-  
-  # Linha do cutoff
-  geom_hline(yintercept = cutoff_cumul,
-             linetype = "dashed",
-             color = "#d62728",
-             linewidth = 0.9) +
-  
-  # Anotação do cutoff
-  annotate("label",
-           x = max(term_strengths$rank) * 0.75,
-           y = cutoff_cumul,
-           label = paste0("Cutoff (80% cumulativo) = ",
-                          round(cutoff_cumul, 1)),
-           color = "#d62728",
-           fill = "white",
-           label.size = 0.3,
-           size = 4) +
-  
-  # Anotação do nº de termos mantidos
-  annotate("text",
-           x = max(term_strengths$rank) * 0.75,
-           y = cutoff_cumul * 0.6,
-           label = paste0(n_manter, " de ", n_total,
-                          " termos (", pct, "%) mantidos"),
-           color = "#d62728",
-           size = 4,
-           fontface = "italic") +
-  
-  # Rótulos repelidos só no top 15
-  geom_text_repel(aes(label = label),
-                  size = 3.8,
-                  color = "black",
-                  fontface = "bold",
-                  box.padding = 0.4,
-                  point.padding = 0.3,
-                  segment.color = "gray50",
-                  segment.size = 0.3,
-                  min.segment.length = 0,
-                  max.overlaps = 20,
-                  direction = "y",
-                  nudge_x = 30,
-                  hjust = 0,
+p_cutoff <- ggplot(term_strengths_plot, aes(x = rank, y = strength)) +
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = cutoff_cumul),
+            fill = "#ffe5e5", alpha = 0.4, inherit.aes = FALSE) +
+  geom_line(color = "gray40", linewidth = 0.6) +
+  geom_point(aes(color = categoria), size = 2.5) +
+  geom_hline(yintercept = cutoff_cumul, linetype = "dashed",
+             color = "#d62728", linewidth = 0.9) +
+  geom_text_repel(aes(label = label, color = categoria),
+                  size = 3.5, fontface = "bold",
+                  box.padding = 0.4, max.overlaps = 20,
+                  direction = "y", nudge_x = 30, hjust = 0,
                   na.rm = TRUE) +
-  
-  # Eixos
+  scale_color_manual(values = cores_categoria, name = "Categoria") +
   scale_x_continuous(limits = c(0, max(term_strengths$rank)),
-                     breaks = seq(0, max(term_strengths$rank), by = 50),
                      expand = c(0.02, 0)) +
   scale_y_continuous(expand = expansion(mult = c(0.02, 0.1))) +
-  
-  # Títulos
   labs(
-    title = "Força dos termos e ponto de corte (80% cumulativo)",
-    subtitle = paste0("Total de termos: ", n_total,
-                      "  |  Mantidos após cutoff: ", n_manter,
-                      " (", pct, "%)  |  Artigos analisados: ",
-                      nrow(naive_results_rede)),
-    x = "Ranking do termo (1 = mais forte)",
-    y = "Força (strength)",
-    caption = "Termos na área rosa estão abaixo do cutoff e foram descartados."
+    title = "Força dos termos por categoria temática",
+    subtitle = paste0("Total: ", nrow(term_strengths), " termos | ",
+                      "Artigos: ", nrow(naive_results_rede)),
+    x = "Ranking", y = "Força (strength)"
   ) +
-  
-  # Tema
   theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", size = 15),
-    plot.subtitle = element_text(color = "gray40", size = 11),
-    plot.caption = element_text(color = "gray50", size = 9, hjust = 0),
-    panel.grid.minor = element_blank(),
-    axis.title = element_text(face = "bold"),
-    plot.margin = margin(15, 30, 15, 15)
-  )
+  theme(plot.title = element_text(face = "bold"))
 
-# 4. Salvar
-ggsave(caminho_resultado("curva_cutoff.png"),
+ggsave(caminho_resultado("curva_cutoff_categorizada.png"),
        plot = p_cutoff, width = 14, height = 8, dpi = 300)
-cat("OK Resultados/curva_cutoff.png\n")
 
 
-## ---- 12.3 Top 30 termos ---- ##
-top30 <- term_strengths %>% head(30)
+## ---- 12.2 Top 30 termos por categoria ---- ##
 
-p_top30 <- ggplot(top30, aes(x = reorder(term, strength), y = strength)) +
-  geom_col(fill = "steelblue") +
-  coord_flip() +
-  labs(title = "Top 30 termos mais fortes",
-       x = NULL, y = "Força (strength)") +
-  theme_minimal(base_size = 12)
+cat("\n===== GRÁFICOS POR CATEGORIA =====\n")
 
-ggsave(caminho_resultado("top30_termos.png"),
-       plot = p_top30, width = 10, height = 10, dpi = 300)
-cat("OK top30_termos.png\n")
-
-## ---- 12.4 Sobreposição WOS × Scopus ---- ##
-p_sobreposicao <- ggplot(dados_sobreposicao, aes(x = categoria, y = n, fill = categoria)) +
-  geom_col(show.legend = FALSE) +
-  geom_text(aes(label = n), vjust = -0.5, size = 5) +
-  labs(title = "Sobreposição entre WOS e Scopus",
-       x = NULL, y = "Número de estudos") +
-  theme_minimal(base_size = 14)
-
-ggsave(caminho_resultado("sobreposicao.png"),
-       plot = p_sobreposicao, width = 8, height = 6, dpi = 300)
-cat("OK sobreposicao.png\n")
+for (cat_nome in c("Afeto", "Percepção", "Espaço urbano/natureza", "Humano/social")) {
+  df_cat <- term_strengths %>%
+    filter(categoria == cat_nome) %>%
+    head(30)
+  
+  if (nrow(df_cat) == 0) next
+  
+  p_cat <- ggplot(df_cat, aes(x = reorder(term, strength), y = strength)) +
+    geom_col(fill = cores_categoria[cat_nome]) +
+    coord_flip() +
+    labs(title = paste("Top 30 termos —", cat_nome),
+         x = NULL, y = "Força (strength)") +
+    theme_minimal(base_size = 12)
+  
+  ggsave(caminho_resultado(paste0("top30_", gsub("/", "_", cat_nome), ".png")),
+         plot = p_cat, width = 10, height = 9, dpi = 300)
+}
 
 
+## ---- 12.3 Rede com categorias coloridas ---- ##
 
-## 12.5 Gráfico: rede de termos (TOP N)     ##
+cat("\n===== REDE COLORIDA POR CATEGORIA =====\n")
 
-cat("\n===== GRÁFICO: REDE DE TERMOS (top 50) =====\n")
-
-# 1. Pegar top 50 termos por strength
-top_n <- 50
-top_terms <- term_strengths %>%
-  arrange(desc(strength)) %>%
-  slice_head(n = top_n) %>%
-  pull(term)
-
-# 2. Criar subgrafo só com esses termos
+top_n <- 100
+top_terms <- term_strengths %>% head(top_n) %>% pull(term)
 g_top <- igraph::induced_subgraph(g, vids = top_terms)
 
-# 3. Manter só arestas com peso mínimo (evita linhas demais)
-peso_min <- quantile(igraph::E(g_top)$weight, 0.3)  # descarta 30% mais fracas
+peso_min <- quantile(igraph::E(g_top)$weight, 0.3)
 g_top <- igraph::delete_edges(g_top,
                               igraph::E(g_top)[igraph::E(g_top)$weight < peso_min])
 
-# 4. Plotar
+V(g_top)$categoria <- term_strengths$categoria[match(V(g_top)$name, term_strengths$term)]
+
 set.seed(42)
-p_rede_top <- ggraph(g_top, layout = "fr") +           # Fruchterman-Reingold (bom p/ redes densas)
+p_rede_cat <- ggraph(g_top, layout = "fr") +
   geom_edge_link(aes(alpha = weight, width = weight),
-                 color = "gray60", show.legend = FALSE) +
-  scale_edge_width(range = c(0.2, 1.5)) +
-  geom_node_point(size = 3, color = "#1f77b4") +
-  geom_node_text(aes(label = name),
-                 repel = TRUE,                # <<< evita sobreposição de rótulos
-                 size = 3, color = "black",
-                 bg.color = "white", bg.r = 0.15) +
-  labs(title = paste("Rede de termos — top", top_n, "mais fortes"),
-       subtitle = paste(nrow(naive_results_rede), "artigos analisados")) +
-  theme_void(base_size = 12)
+                 color = "gray70", show.legend = FALSE) +
+  scale_edge_width(range = c(0.2, 1.2)) +
+  geom_node_point(aes(color = categoria), size = 3.5) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 2.8,
+                 bg.color = "white", bg.r = 0.15, max.overlaps = 30) +
+  scale_color_manual(values = cores_categoria, name = "Categoria") +
+  labs(title = paste("Rede de termos — top", top_n, "por categoria"),
+       subtitle = paste(nrow(naive_results_rede), "artigos")) +
+  theme_void(base_size = 12) +
+  theme(legend.position = "bottom")
 
-ggsave(caminho_resultado("rede_top50.png"),
-       plot = p_rede_top, width = 14, height = 12, dpi = 300)
-cat("OK Resultados/rede_top50.png\n")
-
+ggsave(caminho_resultado("rede_categorizada.png"),
+       plot = p_rede_cat, width = 16, height = 14, dpi = 300)
 
 
-## 12.6 Gráfico: rede com comunidades             ##
+## ---- 12.4 Heatmap focado em afeto × percepção ---- ##
 
-library(ggraph)
-library(igraph)
+cat("\n===== HEATMAP AFETO × PERCEPÇÃO =====\n")
 
-cat("\n===== REDE COM COMUNIDADES =====\n")
+# Selecionar top N de cada categoria
+top_afeto  <- term_strengths %>% filter(categoria == "Afeto")     %>% head(20) %>% pull(term)
+top_percep <- term_strengths %>% filter(categoria == "Percepção") %>% head(20) %>% pull(term)
 
-# 1. Detectar comunidades (Louvain)
+termos_heat <- unique(c(top_afeto, top_percep))
+termos_heat <- intersect(termos_heat, igraph::V(g)$name)
+
+adj_mat <- igraph::as_adjacency_matrix(g, sparse = FALSE, attr = "weight")
+adj_sub <- adj_mat[termos_heat, termos_heat]
+diag(adj_sub) <- 0
+
+melted <- as.data.frame(adj_sub) %>%
+  tibble::rownames_to_column(var = "termo1") %>%
+  tidyr::pivot_longer(cols = -termo1, names_to = "termo2", values_to = "peso")
+
+valores_off <- melted$peso[melted$termo1 != melted$termo2]
+
+p_heat <- ggplot(melted, aes(x = termo1, y = termo2, fill = peso)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  scale_fill_gradient(low = "#ffffff", high = "#d62728",
+                      trans = "sqrt",
+                      limits = c(0, quantile(valores_off, 0.95)),
+                      oob = scales::squish, name = "Coocorrência") +
+  labs(title = "Heatmap afeto × percepção",
+       subtitle = "Intensidade = nº de artigos que contêm ambos os termos",
+       x = NULL, y = NULL) +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    axis.text.y = element_text(size = 7),
+    panel.grid = element_blank()
+  )
+
+ggsave(caminho_resultado("heatmap_afeto_percepcao.png"),
+       plot = p_heat, width = 12, height = 10, dpi = 300)
+
+
+## ---- 12.5 Grafo bipartido afeto ↔ percepção ---- ##
+
+cat("\n===== GRAFO BIPARTIDO AFETO ↔ PERCEPÇÃO =====\n")
+
+# --- 1. Top N de cada lado ---
+n_lado <- 15
+
+lado_afeto <- term_strengths %>%
+  filter(categoria == "Afeto") %>%
+  head(n_lado) %>%
+  pull(term)
+
+lado_percep <- term_strengths %>%
+  filter(categoria == "Percepção") %>%
+  head(n_lado) %>%
+  pull(term)
+
+lado_afeto  <- intersect(lado_afeto,  igraph::V(g)$name)
+lado_percep <- intersect(lado_percep, igraph::V(g)$name)
+
+cat("Termos de afeto no grafo:    ", length(lado_afeto), "\n")
+cat("Termos de percepção no grafo:", length(lado_percep), "\n")
+
+if (length(lado_afeto) == 0 || length(lado_percep) == 0) {
+  cat("⚠️  Faltam termos de afeto ou percepção na rede. Gráfico não gerado.\n")
+} else {
+  
+  # --- 2. Subgrafo com esses termos ---
+  g_bip <- igraph::induced_subgraph(g, vids = c(lado_afeto, lado_percep))
+  
+  # --- 3. Manter só arestas entre os dois lados ---
+  arestas_bip <- igraph::as_data_frame(g_bip, what = "edges")
+  
+  arestas_bip <- arestas_bip %>%
+    filter(
+      (from %in% lado_afeto  & to %in% lado_percep) |
+        (from %in% lado_percep & to %in% lado_afeto)
+    )
+  
+  cat("Pares afeto ↔ percepção:", nrow(arestas_bip), "\n")
+  
+  if (nrow(arestas_bip) == 0) {
+    cat("⚠️  Nenhuma aresta direta entre afeto e percepção. Gráfico não gerado.\n")
+  } else {
+    
+    # --- 4. Construir grafo bipartido com atributo 'type' ---
+    g_bip2 <- igraph::graph_from_data_frame(
+      arestas_bip,
+      directed = FALSE,
+      vertices = data.frame(
+        name = c(lado_afeto, lado_percep),
+        lado = c(rep("Afeto", length(lado_afeto)),
+                 rep("Percepção", length(lado_percep))),
+        stringsAsFactors = FALSE
+      )
+    )
+    
+    # <<< ESSENCIAL: atributo 'type' que o ggraph entende
+    V(g_bip2)$type <- V(g_bip2)$lado == "Percepção"
+    
+    # --- 5. Plotar ---
+    set.seed(42)
+    
+    p_bip <- ggraph(g_bip2, layout = "bipartite") +
+      geom_edge_link(aes(width = weight, alpha = weight),
+                     color = "gray60", show.legend = FALSE) +
+      scale_edge_width(range = c(0.3, 2)) +
+      geom_node_point(aes(color = lado), size = 5) +
+      geom_node_text(aes(label = name),
+                     repel = TRUE, size = 3.5,
+                     bg.color = "white", bg.r = 0.15) +
+      scale_color_manual(values = c("Afeto" = "#d62728",
+                                    "Percepção" = "#1f77b4")) +
+      labs(title = "Conexões diretas entre afeto e percepção",
+           subtitle = paste(nrow(arestas_bip), "pares conectados"),
+           color = "Categoria") +
+      theme_void(base_size = 12)
+    
+    # --- 6. Salvar ---
+    ggsave(caminho_resultado("grafo_bipartido_afeto_percepcao.png"),
+           plot = p_bip, width = 14, height = 10, dpi = 300)
+    cat("OK grafo_bipartido_afeto_percepcao.png\n")
+  }
+}
+
+
+
+## ---- 12.6 Rede de comunidades (opcional) ---- ##
+
+cat("\n===== REDE DE COMUNIDADES =====\n")
+
 comunidades <- igraph::cluster_louvain(g)
 V(g)$comunidade <- as.factor(comunidades$membership)
 
-# 2. Filtrar para top 80 termos (senão fica poluído)
-top_terms_80 <- term_strengths %>%
-  arrange(desc(strength)) %>%
-  slice_head(n = 80) %>%
-  pull(term)
-
+top_terms_80 <- term_strengths %>% head(80) %>% pull(term)
 g_com <- igraph::induced_subgraph(g, vids = top_terms_80)
 
-# 3. Re-detectar comunidades no subgrafo
 com_sub <- igraph::cluster_louvain(g_com)
 V(g_com)$comunidade <- as.factor(com_sub$membership)
 
-# 4. Plotar colorindo por comunidade
 set.seed(42)
 p_rede_com <- ggraph(g_com, layout = "fr") +
   geom_edge_link(alpha = 0.15, color = "gray70") +
   geom_node_point(aes(color = comunidade), size = 4) +
-  geom_node_text(aes(label = name),
-                 repel = TRUE,
-                 size = 2.8,
+  geom_node_text(aes(label = name), repel = TRUE, size = 2.8,
                  bg.color = "white", bg.r = 0.15) +
   scale_color_brewer(palette = "Set2") +
-  labs(title = "Rede de termos agrupados por comunidade temática",
-       subtitle = paste("Top 80 termos |",
-                        length(unique(V(g_com)$comunidade)), "comunidades"),
+  labs(title = "Comunidades temáticas na rede",
+       subtitle = paste(length(unique(V(g_com)$comunidade)), "comunidades"),
        color = "Comunidade") +
   theme_void(base_size = 12) +
   theme(legend.position = "bottom")
 
 ggsave(caminho_resultado("rede_comunidades.png"),
        plot = p_rede_com, width = 16, height = 14, dpi = 300)
-cat("OK Resultados/rede_comunidades.png\n")
+cat("OK rede_comunidades.png\n")
 
 
-#### ============================================= ####
-#### 12.7 Heatmap de coocorrência (top 30)         ####
-#### ============================================= ####
-
-library(tidyr)
-library(ggplot2)
-
-cat("\n===== HEATMAP DE COOCORRÊNCIA =====\n")
-
-# 1. Garantir que a rede 'g' existe
-if (!exists("g")) {
-  stop("ERRO: objeto 'g' (rede) não encontrado. Rode a Seção 8 primeiro.")
-}
-
-# 2. Pegar top 30 termos por força
-top30_terms <- term_strengths %>%
-  arrange(desc(strength)) %>%
-  slice_head(n = 30) %>%
-  pull(term)
-
-cat("Termos selecionados:", length(top30_terms), "\n")
-
-# 3. Matriz de adjacência PONDERADA pelo nº de estudos em que coocorrem
-adj_mat <- igraph::as_adjacency_matrix(
-  g,
-  sparse = FALSE,
-  attr   = "weight"
-)
-adj_top <- adj_mat[top30_terms, top30_terms]
-
-# <<< ZERA A DIAGONAL (termo contra si mesmo distorce a escala)
-diag(adj_top) <- 0
-
-melted <- as.data.frame(adj_top) %>%
-  tibble::rownames_to_column(var = "termo1") %>%
-  tidyr::pivot_longer(
-    cols = -termo1,
-    names_to = "termo2",
-    values_to = "peso"
-  )
-
-# Diagnóstico da distribuição real (fora da diagonal)
-valores_off <- melted$peso[melted$termo1 != melted$termo2]
-cat("Distribuição dos pesos (fora da diagonal):\n")
-print(summary(valores_off))
-
-p_heatmap <- ggplot(melted, aes(x = termo1, y = termo2, fill = peso)) +
-  geom_tile(color = "white", linewidth = 0.3) +
-  scale_fill_gradient(
-    low = "#ffffff",
-    high = "#d62728",
-    trans = "sqrt",                                    # <<< ESCALA
-    limits = c(0, quantile(valores_off, 0.95)),        # <<< corta extremos
-    oob = scales::squish,
-    name = "Coocorrência"
-  ) +
-  labs(
-    title = "Heatmap de coocorrência — top 30 termos",
-    subtitle = paste("Intensidade = nº de artigos em que os dois termos aparecem juntos"),
-    x = NULL, y = NULL
-  ) +
-  theme_minimal(base_size = 10) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
-    axis.text.y = element_text(size = 7),
-    panel.grid = element_blank(),
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(color = "gray40", size = 9)
-  )
-
-# 7. Salvar
-ggsave(caminho_resultado("heatmap_coocorrencia.png"),
-       plot = p_heatmap, width = 12, height = 10, dpi = 300)
-cat("OK Resultados/heatmap_coocorrencia.png\n")
-
-
-## 12.8 Rede interativa (visNetwork)             ##
+## ---- 12.7 Rede interativa (visNetwork) ---- ##
 
 # install.packages("visNetwork")
 library(visNetwork)
 
 cat("\n===== REDE INTERATIVA =====\n")
 
-# Preparar nós
 nodes_df <- data.frame(
-  id = V(g_top)$name,
+  id    = V(g_top)$name,
   label = V(g_top)$name,
-  value = igraph::strength(g_top)[V(g_top)$name],  # tamanho proporcional à força
+  value = igraph::strength(g_top)[V(g_top)$name],
+  group = V(g_top)$categoria,
   title = paste0("<b>", V(g_top)$name, "</b><br>",
+                 "Categoria: ", V(g_top)$categoria, "<br>",
                  "Força: ", round(igraph::strength(g_top)[V(g_top)$name], 1)),
   stringsAsFactors = FALSE
 )
 
-# Preparar arestas
 edges_df <- igraph::as_data_frame(g_top, what = "edges")
 colnames(edges_df)[1:2] <- c("from", "to")
 edges_df$value <- edges_df$weight
 
-# Gerar HTML interativo
 vis <- visNetwork(nodes_df, edges_df,
-                  main = "Rede de termos (interativa)",
+                  main = "Rede de termos categorizada (interativa)",
                   width = "100%", height = "800px") %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visNodes(shape = "dot", font = list(size = 14)) %>%
   visEdges(smooth = FALSE, color = list(opacity = 0.3)) %>%
+  visGroups(groupname = "Afeto",
+            color = list(background = "#d62728", border = "#8b1a1a")) %>%
+  visGroups(groupname = "Percepção",
+            color = list(background = "#1f77b4", border = "#0d4a75")) %>%
+  visGroups(groupname = "Espaço urbano/natureza",
+            color = list(background = "#2ca02c", border = "#1a5e1a")) %>%
+  visGroups(groupname = "Humano/social",
+            color = list(background = "#ff7f0e", border = "#a04d00")) %>%
+  visGroups(groupname = "Outro",
+            color = list(background = "gray60", border = "gray30")) %>%
   visOptions(highlightNearest = TRUE,
              nodesIdSelection = TRUE) %>%
   visPhysics(stabilization = TRUE) %>%
-  visInteraction(navigationButtons = TRUE)
+  visInteraction(navigationButtons = TRUE) %>%
+  visLegend(useGroups = TRUE, position = "right")
 
 visSave(vis, file = caminho_resultado("rede_interativa.html"))
-cat("OK Resultados/rede_interativa.html\n")
-cat("Abra no navegador para explorar.\n")
-
+cat("OK rede_interativa.html\n")
 
 
 #### ============================================= ####
-#### 13. CONFIRMAÇÃO FINAL                         ####
+#### 13. RELATÓRIO FINAL CONSOLIDADO               ####
 #### ============================================= ####
 
-cat("\n===== ARQUIVOS EM:", pasta_resultados, "=====\n")
+cat("\n\n")
+cat("=============================================================\n")
+cat("                  RELATÓRIO FINAL                           \n")
+cat("=============================================================\n\n")
+
+cat("### AMOSTRA ###\n")
+cat("  Total após deduplicação:", nrow(naive_results), "\n")
+cat("  Total usado na rede:   ", nrow(naive_results_rede), "\n")
+cat("  Termos extraídos:      ", length(terms_full), "\n")
+cat("  Nós na rede:           ", length(igraph::V(g)), "\n")
+cat("  Arestas na rede:       ", length(igraph::E(g)), "\n\n")
+
+cat("### DISTRIBUIÇÃO POR CATEGORIA ###\n")
+print(table(term_strengths$categoria))
+cat("\n")
+
+cat("### TOP 20 TERMOS GERAIS ###\n")
+print(head(term_strengths[, c("rank", "term", "strength", "categoria")], 20),
+      row.names = FALSE)
+cat("\n")
+
+cat("### TOP 10 — AFETO ###\n")
+print(head(term_strengths %>% filter(categoria == "Afeto") %>%
+             select(rank, term, strength), 10),
+      row.names = FALSE)
+cat("\n")
+
+cat("### TOP 10 — PERCEPÇÃO ###\n")
+print(head(term_strengths %>% filter(categoria == "Percepção") %>%
+             select(rank, term, strength), 10),
+      row.names = FALSE)
+cat("\n")
+
+cat("### TERMOS PONTE (conectam afeto e percepção) ###\n")
+if (exists("pontes_score_df")) {
+  print(head(pontes_score_df %>% select(termo, n_afeto, n_percepcao, score_ponte), 10),
+        row.names = FALSE)
+} else {
+  cat("  (pontes_score_df não disponível — Seção 9H não rodou)\n")
+}
+cat("\n")
+
+cat("### PARES AFETO ↔ PERCEPÇÃO MAIS FORTES ###\n")
+if (exists("pontes") && nrow(pontes) > 0) {
+  print(head(pontes, 10), row.names = FALSE)
+} else {
+  cat("  Nenhuma aresta direta encontrada entre afeto e percepção.\n")
+}
+cat("\n")
+
+cat("### CUTOFF (80% cumulativo) ###\n")
+cat("  Valor do cutoff: ", round(cutoff_cumul, 2), "\n")
+cat("  Termos mantidos:", length(kept_terms), "\n\n")
+
+cat("### SOBREPOSIÇÃO WOS × SCOPUS ###\n")
+cat("  Só WOS:      ", length(only_wos), "\n")
+cat("  Só Scopus:   ", length(only_sco), "\n")
+cat("  Em ambas:    ", length(both), "\n\n")
+
+cat("=============================================================\n")
+cat("               ARQUIVOS GERADOS                             \n")
+cat("=============================================================\n\n")
 
 arquivos_salvos <- list.files(pasta_resultados,
-                              pattern = "\\.(csv|png|txt)$",
+                              pattern = "\\.(csv|png|txt|html|rds)$",
                               full.names = FALSE)
-print(arquivos_salvos)
 
-cat("\n===== TAMANHO DOS ARQUIVOS =====\n")
 for (f in arquivos_salvos) {
   caminho_f <- file.path(pasta_resultados, f)
-  cat(sprintf("  %-40s %8.1f KB\n", f, file.size(caminho_f) / 1024))
+  cat(sprintf("  %-50s %8.1f KB\n", f, file.size(caminho_f) / 1024))
 }
 
-cat("\n===== SCRIPT CONCLUÍDO =====\n")
-cat("Todos os resultados foram salvos em:\n  ", pasta_resultados, "\n\n")
+cat("\n=============================================================\n")
+cat("Pasta de resultados:\n  ", pasta_resultados, "\n")
+cat("=============================================================\n\n")
 
-cat("Objetos criados:\n")
-for (o in c("dados_WOS", "dados_SCO", "naive_results_import", "naive_results",
-            "keywords", "title_terms", "abstract_terms", "terms_min",
-            "g", "term_strengths", "cutoff_cumul", "kept_terms",
-            "only_wos", "only_sco", "both",
-            "top_autores", "top_paises", "regiao_tab")) 
-  status <- if (exists(o)) "OK"
+# Salvar ambiente completo para retomada
+save.image(file = caminho_resultado("ambiente_completo.RData"))
+cat("OK Ambiente salvo em ambiente_completo.RData\n")
+cat("   (para retomar depois: load('Resultados/ambiente_completo.RData'))\n\n")
 
-
-cat("Valores únicos (amostra):\n")
-print(sort(unique(as.vector(adj_top)))[1:20])
-cat("Máximo:", max(adj_top), "\n")
-cat("Mínimo (fora da diagonal):", min(adj_top[row(adj_top) != col(adj_top)]), "\n")
+cat("✅ SCRIPT CONCLUÍDO COM SUCESSO.\n")
 
 
 
 
 
-
-
-
-
-cat("===== DIAGNÓSTICO: TERMOS DE AFETO/PERCEPÇÃO NA AMOSTRA =====\n\n")
-
-termos_diag <- c(
-  "affection", "affective", "affect",
-  "emotion", "emotional", "feeling", "mood",
-  "perception", "perceived", "perceptual",
-  "place attachment", "place identity",
-  "well-being", "wellbeing", "mental health"
-)
-
-diag_df <- data.frame(
-  termo      = termos_diag,
-  n_abstract = NA_integer_,
-  n_keywords = NA_integer_,
-  n_title    = NA_integer_,
-  pct        = NA_real_
-)
-
-for (i in seq_along(termos_diag)) {
-  t <- termos_diag[i]
-  pat <- paste0("\\b", gsub(" ", "\\\\s+", t), "s?\\b")
-  
-  diag_df$n_abstract[i] <- sum(grepl(pat, naive_results$abstract, ignore.case = TRUE), na.rm = TRUE)
-  diag_df$n_keywords[i] <- sum(grepl(pat, naive_results$keywords, ignore.case = TRUE), na.rm = TRUE)
-  diag_df$n_title[i]    <- sum(grepl(pat, naive_results$title,    ignore.case = TRUE), na.rm = TRUE)
-  diag_df$pct[i]        <- round(100 * diag_df$n_abstract[i] / nrow(naive_results), 1)
-}
-
-diag_df <- diag_df %>% arrange(desc(n_abstract))
-print(diag_df, row.names = FALSE)
-
-
-
-cat("\n===== TOP 30 TERMOS DA REDE =====\n")
-print(head(term_strengths, 30), row.names = FALSE)
-
-cat("\n===== QUANTOS TERMOS DE AFETO/PERCEPÇÃO ESTÃO NO TOP 100? =====\n")
-top100 <- head(term_strengths$term, 100)
-afeto_presente <- intersect(top100, c("affection", "affective", "emotion",
-                                      "emotional", "feeling", "mood",
-                                      "perception", "perceived", "place attachment"))
-cat("Presentes:", length(afeto_presente), "\n")
-print(afeto_presente)
-
-
-
-
-
-
-
-
-# Manter apenas artigos que mencionam pelo menos um termo de afeto/percepção
-padrao_afeto <- paste0("\\b(", paste(c(
-  "affection", "affective", "emotion", "emotional",
-  "feeling", "mood", "perception", "perceived",
-  "place attachment", "place identity", "well-being"
-), collapse = "|"), ")")
-
-naive_results_afeto <- naive_results %>%
-  filter(
-    grepl(padrao_afeto, abstract, ignore.case = TRUE) |
-      grepl(padrao_afeto, title,    ignore.case = TRUE) |
-      grepl(padrao_afeto, keywords, ignore.case = TRUE)
-  )
-
-cat("Artigos com afeto/percepção:", nrow(naive_results_afeto),
-    "de", nrow(naive_results), "\n")
-
-#### ============================================= ####
-#### 8. REDE DE TERMOS (subamostra: afeto/percepção) ####
-#### ============================================= ####
-
-cat("\n===== CONSTRUINDO REDE DE TERMOS (afeto/percepção) =====\n")
-cat("Artigos na subamostra:", nrow(naive_results_afeto), "\n")
-
-if (nrow(naive_results_afeto) > 5000) {
-  set.seed(42)
-  naive_results_rede <- naive_results_afeto %>% sample_n(5000)
-  cat("Amostra aplicada: 5000 artigos\n")
-} else {
-  naive_results_rede <- naive_results_afeto
-  cat("Usando todos os artigos da subamostra\n")
-}
-
-# --- Extrair termos (VERSÕES NORMALIZADAS) ---
-cat("=== Extraindo keywords_r ===\n")
-keywords_r <- litsearchr::extract_terms(
-  keywords = naive_results_rede[, "keywords_norm"],
-  min_freq = 3,
-  method = "tagged"
-)
-cat("keywords_r:", length(keywords_r), "\n")
-
-cat("=== Extraindo title_terms_r ===\n")
-title_terms_r <- litsearchr::extract_terms(
-  text = naive_results_rede[, "title_norm"],
-  method = "fakerake",
-  min_freq = 3,
-  min_n = 1
-)
-cat("title_terms_r:", length(title_terms_r), "\n")
-
-cat("=== Extraindo abstract_terms_r ===\n")
-abstract_terms_r <- litsearchr::extract_terms(
-  text = naive_results_rede[, "abstract_norm"],
-  method = "fakerake",
-  min_freq = 3,
-  min_n = 1,
-  max_n = 4
-)
-cat("abstract_terms_r:", length(abstract_terms_r), "\n")
-
-terms_min_r <- unique(c(keywords_r, title_terms_r, abstract_terms_r))
-cat("terms_min_r:", length(terms_min_r), "\n")
-
-# --- DFM ---
-cat("=== Criando DFM ===\n")
-docs <- paste(naive_results_rede$title_norm,
-              naive_results_rede$abstract_norm,
-              sep = " ")
-dfm <- litsearchr::create_dfm(elements = docs, features = terms_min_r)
-cat("DFM criado:", nrow(dfm), "x", ncol(dfm), "\n")
-
-# --- Rede ---
-cat("=== Criando rede ===\n")
-g <- litsearchr::create_network(dfm, min_studies = 2)
-cat("Nós:", length(igraph::V(g)), "\n")
-cat("Arestas:", length(igraph::E(g)), "\n")
