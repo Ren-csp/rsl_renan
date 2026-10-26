@@ -3,6 +3,7 @@
 # definindo palavras-chave
 
 
+
 #### ============================================= ####
 #### 0. PACOTES                                    ####
 #### ============================================= ####
@@ -923,9 +924,12 @@ write.csv(dist_df,      caminho_resultado("distancias_termos_alvo.csv"),      ro
 write.csv(top_proximos, caminho_resultado("top15_proximos_termos_alvo.csv"), row.names = FALSE)
 
 
-#### ============================================= ####
-#### 9. FORÇA DOS TERMOS + CLASSIFICAÇÃO TEMÁTICA  ####
-#### ============================================= ####
+# =========================================================
+# SCRIPT DEFINITIVO DA SEÇÃO 9 (Filtro + Categoria + Pontes)
+# =========================================================
+
+library(dplyr)
+library(stringr)
 
 cat("\n===== FORÇA DOS TERMOS =====\n")
 
@@ -934,73 +938,53 @@ term_strengths <- data.frame(
   strength = as.numeric(igraph::strength(g)),
   stringsAsFactors = FALSE
 ) %>%
+  # 1. FILTRO DE RUÍDOS
+  filter(!str_detect(term, "\\s+(of|in|the|and|to|for|on|with|by|at|from|or|a|an)$")) %>%
+  # 2. RANKING
   mutate(rank = rank(-strength, ties.method = "min")) %>%
-  arrange(desc(strength))
-
-# --- Classificação temática (VETORIZADA, mais rápida) ---
-classificar_termos_vetor <- function(termos) {
-  termos_lower <- tolower(termos)
-  
-  # Padrões por categoria (um OR gigante por categoria)
-  padroes <- list(
-    Afeto = paste(c(
-      "affection", "affective", "affect", "emotion", "emotional",
-      "feeling", "mood", "well-being", "wellbeing", "mental health",
-      "restorative", "stress", "anxiety", "satisfaction", "happiness",
-      "pleasure", "preference", "aesthetic", "attachment",
-      "place attachment", "place identity", "belonging"
-    ), collapse = "|"),
-    
-    Percepção = paste(c(
-      "perception", "perceived", "perceptual", "perceiv",
-      "view", "opinion", "attitude", "awareness", "experience",
-      "response", "preference", "judgment", "assessment"
-    ), collapse = "|"),
-    
-    `Espaço urbano/natureza` = paste(c(
-      "urban", "park", "green", "space", "nature",
-      "environment", "landscape", "outdoor", "public", "open",
-      "forest", "garden", "tree", "vegetation", "ecosystem",
-      "built", "neighborhood", "city", "cities"
-    ), collapse = "|"),
-    
-    `Humano/social` = paste(c(
-      "human", "people", "person", "resident", "visitor",
-      "user", "community", "social", "individual"
-    ), collapse = "|")
+  arrange(desc(strength)) %>%
+  # 3. CLASSIFICAÇÃO TEMÁTICA (cria a coluna 'categoria')
+  mutate(
+    categoria = case_when(
+      grepl("affection|affective|affect|emotion|emotional|feeling|mood|well-being|wellbeing|mental health|restorative|stress|anxiety|satisfaction|happiness|pleasure|preference|aesthetic|attachment|place attachment|place identity|belonging", term, ignore.case = TRUE) ~ "Afeto",
+      grepl("perception|perceived|perceptual|perceiv|view|opinion|attitude|awareness|experience|response|preference|judgment|assessment", term, ignore.case = TRUE) ~ "Percepção",
+      grepl("urban|park|green|space|nature|environment|landscape|outdoor|public|open|forest|garden|tree|vegetation|ecosystem|built|neighborhood|city|cities", term, ignore.case = TRUE) ~ "Espaço urbano/natureza",
+      grepl("human|people|person|resident|visitor|user|community|social|individual", term, ignore.case = TRUE) ~ "Humano/social",
+      TRUE ~ "Outro"
+    )
   )
-  
-  # Classificação por prioridade (Afeto > Percepção > Espaço > Humano)
-  categoria <- rep("Outro", length(termos))
-  
-  # Ordem importa (último a sobrescrever ganha, então processamos ao contrário)
-  for (cat_nome in c("Humano/social", "Espaço urbano/natureza",
-                     "Percepção", "Afeto")) {
-    idx <- grepl(padroes[[cat_nome]], termos_lower)
-    categoria[idx] <- cat_nome
-  }
-  
-  return(categoria)
-}
 
-term_strengths$categoria <- classificar_termos_vetor(term_strengths$term)
-
-cat("\n===== DISTRIBUIÇÃO POR CATEGORIA =====\n")
+cat("Termos válidos após filtro de ruído:", nrow(term_strengths), "\n")
 print(table(term_strengths$categoria))
 
-cat("\n===== TOP 30 GERAL =====\n")
-print(head(term_strengths, 30), row.names = FALSE)
 
-cat("\n===== TOP 30 — AFETO =====\n")
-print(head(term_strengths %>% filter(categoria == "Afeto"), 30), row.names = FALSE)
+cat("\n===== PONTES ENTRE AFETO E PERCEPÇÃO =====\n")
 
-cat("\n===== TOP 30 — PERCEPÇÃO =====\n")
-print(head(term_strengths %>% filter(categoria == "Percepção"), 30), row.names = FALSE)
+termos_afeto    <- term_strengths %>% filter(categoria == "Afeto") %>% pull(term)
+termos_percep   <- term_strengths %>% filter(categoria == "Percepção") %>% pull(term)
 
-write.csv(term_strengths,
-          caminho_resultado("termos_forca_classificados.csv"),
+termos_afeto_g  <- intersect(termos_afeto,  igraph::V(g)$name)
+termos_percep_g <- intersect(termos_percep, igraph::V(g)$name)
+
+cat("Termos de afeto na rede:", length(termos_afeto_g), "\n")
+cat("Termos de percepção na rede:", length(termos_percep_g), "\n")
+
+arestas <- igraph::as_data_frame(g, what = "edges")
+
+pontes <- arestas %>%
+  filter(
+    (from %in% termos_afeto_g  & to %in% termos_percep_g) |
+      (from %in% termos_percep_g & to %in% termos_afeto_g)
+  ) %>%
+  arrange(desc(weight))
+
+cat("\nPares afeto↔percepção:", nrow(pontes), "\n")
+print(head(pontes, 30), row.names = FALSE)
+
+write.csv(pontes,
+          caminho_resultado("pontes_afeto_percepcao.csv"),
           row.names = FALSE)
-
+cat("\n✅ Arquivo 'pontes_afeto_percepcao.csv' salvo!\n")
 
 #### ============================================= ####
 #### 9G. PONTES ENTRE AFETO E PERCEPÇÃO            ####
@@ -1451,13 +1435,14 @@ write.csv(top_revistas_sul,
 
 
 #### ============================================= ####
-#### 9G8 ÁREAS DO CONHECIMENTO                   ####
+#### 9G8 ÁREAS DO CONHECIMENTO (OTIMIZADA)        ####
 #### ============================================= ####
 
 cat("\n===== ÁREAS DO CONHECIMENTO =====\n")
 
-# WOS e Scopus trazem 'WC' (Web of Science Categories) ou 'SC' (Scopus Categories)
-# quando importados via bibliometrix. Verifique se estão disponíveis:
+# ============================================================
+# PARTE 1 — Áreas formais (WOS WC / Scopus SC)
+# ============================================================
 
 if ("WC" %in% colnames(dados_WOS_raw)) {
   areas_wos <- dados_WOS_raw$WC %>%
@@ -1499,46 +1484,73 @@ if ("SC" %in% colnames(dados_SCO_raw)) {
             caminho_resultado("top20_areas_scopus.csv"), row.names = FALSE)
 }
 
-# --- Gráfico: áreas por região (usando keywords como proxy) ---
-cat("\n--- ÁREAS ESTIMADAS POR REGIÃO (via keywords) ---\n")
 
-areas_categoria <- function(df, categoria_nome) {
-  termos_cat <- if (exists("term_strengths")) {
-    term_strengths %>% filter(categoria == categoria_nome) %>% pull(term)
-  } else character(0)
-  
-  if (length(termos_cat) == 0) return(0)
-  
-  docs_sub <- paste(df$title, df$abstract, df$keywords, sep = " ")
-  sum(sapply(termos_cat, function(t) {
-    sum(grepl(paste0("\\b", t, "\\b"), docs_sub, ignore.case = TRUE))
-  }))
+# ============================================================
+# PARTE 2 — Categorias temáticas por região (via cache da 9G4)
+# ============================================================
+
+cat("\n--- ÁREAS ESTIMADAS POR REGIÃO (via cache) ---\n")
+
+# Verificar se o cache da 9G4 existe
+if (!exists("termo_doc_mat") || !exists("meta_pais")) {
+  stop("Cache da 9G4 não encontrado. Rode a 9G4 primeiro.")
 }
 
-norte_df <- naive_results %>% filter(regiao == "Norte Global")
-sul_df   <- naive_results %>% filter(regiao == "Sul Global")
-
+# Termos por categoria presentes no cache
 categorias <- c("Afeto", "Percepção", "Espaço urbano/natureza", "Humano/social")
 
+termos_por_cat <- lapply(categorias, function(c) {
+  intersect(
+    term_strengths %>% filter(categoria == c) %>% pull(term),
+    colnames(termo_doc_mat)
+  )
+})
+names(termos_por_cat) <- categorias
+
+cat("\nTermos por categoria (presentes no cache):\n")
+for (c in categorias) cat(sprintf("  %-25s %d\n", c, length(termos_por_cat[[c]])))
+
+# Índices por região
+idx_norte <- which(meta_pais$regiao == "Norte Global")
+idx_sul   <- which(meta_pais$regiao == "Sul Global")
+
+cat("Artigos Norte (amostra):", length(idx_norte),
+    "| Artigos Sul (amostra):", length(idx_sul), "\n")
+
+# Função rápida via colSums
+areas_categoria_fast <- function(idx, termos_cat) {
+  if (length(termos_cat) == 0 || length(idx) == 0) return(0L)
+  sum(colSums(termo_doc_mat[idx, termos_cat, drop = FALSE]))
+}
+
+# Calcular
 df_cat_reg <- data.frame(
   categoria = categorias,
-  Norte     = sapply(categorias, function(c) areas_categoria(norte_df, c)),
-  Sul       = sapply(categorias, function(c) areas_categoria(sul_df,   c))
+  Norte = sapply(categorias, function(c) areas_categoria_fast(idx_norte, termos_por_cat[[c]])),
+  Sul   = sapply(categorias, function(c) areas_categoria_fast(idx_sul,   termos_por_cat[[c]]))
 ) %>%
   tidyr::pivot_longer(cols = c(Norte, Sul),
                       names_to = "regiao",
                       values_to = "n") %>%
   mutate(regiao = ifelse(regiao == "Norte", "Norte Global", "Sul Global"))
 
+print(df_cat_reg, row.names = FALSE)
+
+# Gráfico
 p_cat_reg <- ggplot(df_cat_reg,
                     aes(x = reorder(categoria, n),
                         y = n,
                         fill = regiao)) +
   geom_col(position = position_dodge(width = 0.8)) +
+  geom_text(aes(label = n),
+            position = position_dodge(width = 0.8),
+            hjust = -0.2, size = 3.5) +
   coord_flip() +
   scale_fill_manual(values = c("Norte Global" = "#1f77b4",
                                "Sul Global"   = "#d62728")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(title = "Presença de categorias temáticas: Norte × Sul Global",
+       subtitle = "Baseado em ocorrências dos termos classificados em cada categoria (via amostra)",
        x = NULL, y = "Nº de ocorrências", fill = "Região") +
   theme_minimal(base_size = 13)
 
@@ -1746,23 +1758,38 @@ ggsave(caminho_resultado("rede_categorizada.png"),
 
 cat("\n===== HEATMAP AFETO × PERCEPÇÃO =====\n")
 
-# Selecionar top N de cada categoria
-top_afeto  <- term_strengths %>% filter(categoria == "Afeto")     %>% head(20) %>% pull(term)
-top_percep <- term_strengths %>% filter(categoria == "Percepção") %>% head(20) %>% pull(term)
+# 1. Selecionar top N de cada categoria APLICANDO O FILTRO DE RUÍDO
+# (Removemos termos que terminam em preposições, plurais de preposições, etc)
+top_afeto  <- term_strengths %>% 
+  filter(categoria == "Afeto") %>% 
+  filter(!str_detect(term, "\\s+(of|in|the|and|to|for|on|with|by|at|from|or|a|an)s?$")) %>%
+  head(20) %>% 
+  pull(term)
+
+top_percep <- term_strengths %>% 
+  filter(categoria == "Percepção") %>% 
+  filter(!str_detect(term, "\\s+(of|in|the|and|to|for|on|with|by|at|from|or|a|an)s?$")) %>%
+  head(20) %>% 
+  pull(term)
 
 termos_heat <- unique(c(top_afeto, top_percep))
 termos_heat <- intersect(termos_heat, igraph::V(g)$name)
 
+cat("Termos válidos para o heatmap:", length(termos_heat), "\n")
+
+# 2. Criar matriz de adjacência
 adj_mat <- igraph::as_adjacency_matrix(g, sparse = FALSE, attr = "weight")
 adj_sub <- adj_mat[termos_heat, termos_heat]
 diag(adj_sub) <- 0
 
+# 3. Transformar em formato longo
 melted <- as.data.frame(adj_sub) %>%
   tibble::rownames_to_column(var = "termo1") %>%
   tidyr::pivot_longer(cols = -termo1, names_to = "termo2", values_to = "peso")
 
 valores_off <- melted$peso[melted$termo1 != melted$termo2]
 
+# 4. Gerar o gráfico
 p_heat <- ggplot(melted, aes(x = termo1, y = termo2, fill = peso)) +
   geom_tile(color = "white", linewidth = 0.3) +
   scale_fill_gradient(low = "#ffffff", high = "#d62728",
@@ -1779,8 +1806,10 @@ p_heat <- ggplot(melted, aes(x = termo1, y = termo2, fill = peso)) +
     panel.grid = element_blank()
   )
 
-ggsave(caminho_resultado("heatmap_afeto_percepcao.png"),
+# 5. Salvar com um nome NOVO para evitar cache
+ggsave(caminho_resultado("heatmap_afeto_percepcao_LIMPO.png"),
        plot = p_heat, width = 12, height = 10, dpi = 300)
+cat("OK heatmap_afeto_percepcao_LIMPO.png\n")
 
 
 ## ---- 12.5 Grafo bipartido afeto ↔ percepção ---- ##
@@ -1870,6 +1899,7 @@ if (length(lado_afeto) == 0 || length(lado_percep) == 0) {
 
 
 
+
 ## ---- 12.6 Rede de comunidades (opcional) ---- ##
 
 cat("\n===== REDE DE COMUNIDADES =====\n")
@@ -1901,52 +1931,86 @@ ggsave(caminho_resultado("rede_comunidades.png"),
 cat("OK rede_comunidades.png\n")
 
 
-## ---- 12.7 Rede interativa (visNetwork) ---- ##
+## 12.7 Heatmap de coocorrência (top 30)         ##
 
-# install.packages("visNetwork")
-library(visNetwork)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(dplyr)
 
-cat("\n===== REDE INTERATIVA =====\n")
+cat("\n===== HEATMAP DE COOCORRÊNCIA (TOP 30) =====\n")
 
-nodes_df <- data.frame(
-  id    = V(g_top)$name,
-  label = V(g_top)$name,
-  value = igraph::strength(g_top)[V(g_top)$name],
-  group = V(g_top)$categoria,
-  title = paste0("<b>", V(g_top)$name, "</b><br>",
-                 "Categoria: ", V(g_top)$categoria, "<br>",
-                 "Força: ", round(igraph::strength(g_top)[V(g_top)$name], 1)),
-  stringsAsFactors = FALSE
+# 1. Garantir que a rede 'g' existe
+if (!exists("g")) {
+  stop("ERRO: objeto 'g' (rede) não encontrado. Rode a Seção 8 primeiro.")
+}
+
+# 2. Pegar top 30 termos por força (APLICANDO O FILTRO DE RUÍDO)
+# Filtramos preposições/artigos no final antes de pegar os 30 primeiros
+top30_terms <- term_strengths %>%
+  filter(!str_detect(term, "\\s+(of|in|the|and|to|for|on|with|by|at|from|or|a|an)s?$")) %>%
+  arrange(desc(strength)) %>%
+  slice_head(n = 30) %>%
+  pull(term)
+
+cat("Termos selecionados para o heatmap:", length(top30_terms), "\n")
+
+# 3. Matriz de adjacência PONDERADA pelo nº de estudos em que coocorrem
+adj_mat <- igraph::as_adjacency_matrix(
+  g,
+  sparse = FALSE,
+  attr   = "weight"
 )
+adj_top <- adj_mat[top30_terms, top30_terms]
 
-edges_df <- igraph::as_data_frame(g_top, what = "edges")
-colnames(edges_df)[1:2] <- c("from", "to")
-edges_df$value <- edges_df$weight
+# 4. ZERAR A DIAGONAL (termo contra si mesmo distorce a escala)
+diag(adj_top) <- 0
 
-vis <- visNetwork(nodes_df, edges_df,
-                  main = "Rede de termos categorizada (interativa)",
-                  width = "100%", height = "800px") %>%
-  visIgraphLayout(layout = "layout_with_fr") %>%
-  visNodes(shape = "dot", font = list(size = 14)) %>%
-  visEdges(smooth = FALSE, color = list(opacity = 0.3)) %>%
-  visGroups(groupname = "Afeto",
-            color = list(background = "#d62728", border = "#8b1a1a")) %>%
-  visGroups(groupname = "Percepção",
-            color = list(background = "#1f77b4", border = "#0d4a75")) %>%
-  visGroups(groupname = "Espaço urbano/natureza",
-            color = list(background = "#2ca02c", border = "#1a5e1a")) %>%
-  visGroups(groupname = "Humano/social",
-            color = list(background = "#ff7f0e", border = "#a04d00")) %>%
-  visGroups(groupname = "Outro",
-            color = list(background = "gray60", border = "gray30")) %>%
-  visOptions(highlightNearest = TRUE,
-             nodesIdSelection = TRUE) %>%
-  visPhysics(stabilization = TRUE) %>%
-  visInteraction(navigationButtons = TRUE) %>%
-  visLegend(useGroups = TRUE, position = "right")
+# 5. Transformar em formato longo com tidyr
+melted <- as.data.frame(adj_top) %>%
+  tibble::rownames_to_column(var = "termo1") %>%
+  tidyr::pivot_longer(
+    cols = -termo1,
+    names_to = "termo2",
+    values_to = "peso"
+  )
 
-visSave(vis, file = caminho_resultado("rede_interativa.html"))
-cat("OK rede_interativa.html\n")
+# 6. Diagnóstico da distribuição real (fora da diagonal)
+valores_off <- melted$peso[melted$termo1 != melted$termo2]
+cat("Distribuição dos pesos (fora da diagonal):\n")
+print(summary(valores_off))
+
+# 7. Gerar o gráfico
+p_heatmap <- ggplot(melted, aes(x = termo1, y = termo2, fill = peso)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  scale_fill_gradient(
+    low = "#ffffff",
+    high = "#d62728",
+    trans = "sqrt",                                    # Escala raiz quadrada
+    limits = c(0, quantile(valores_off, 0.95)),        # Corta extremos
+    oob = scales::squish,
+    name = "Coocorrência"
+  ) +
+  labs(
+    title = "Heatmap de coocorrência — top 30 termos",
+    subtitle = "Intensidade = nº de artigos em que os dois termos aparecem juntos",
+    x = NULL, y = NULL
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    axis.text.y = element_text(size = 7),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(color = "gray40", size = 9)
+  )
+
+# 8. Salvar
+ggsave(caminho_resultado("heatmap_coocorrencia.png"),
+       plot = p_heatmap, width = 12, height = 10, dpi = 300)
+cat("OK Resultados/heatmap_coocorrencia.png\n")
+
+
 
 
 #### ============================================= ####
@@ -2035,5 +2099,6 @@ cat("OK Ambiente salvo em ambiente_completo.RData\n")
 cat("   (para retomar depois: load('Resultados/ambiente_completo.RData'))\n\n")
 
 cat("✅ SCRIPT CONCLUÍDO COM SUCESSO.\n")
+
 
 
